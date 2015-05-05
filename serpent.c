@@ -94,7 +94,7 @@ void serpent_fp (serpent_blk *in, serpent_blk *out)
 }
 
 /******************************************************************************/
-
+// performs linear transformation
 void serpent_lt (serpent_blk* x, int type) 
 {
   uint32_t x0, x1, x2, x3;
