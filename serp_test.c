@@ -67,7 +67,7 @@ int main (int argc, char *argv[])
     // set key 
     serpent_setkey (&serpent_key, key, klen);
     // encrypt
-    //serpent_enc (&serpent_key, pt1, ct1);
+    serpent_enc (&serpent_key, pt1, ct2);
   
     if (memcmp (ct1, ct2, clen) == 0) {
       printf ("\n\nSelf-test for key length %i OK", klen);

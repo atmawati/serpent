@@ -10,7 +10,8 @@ INCLUDELIB LIBCMT
 INCLUDELIB OLDNAMES
 
 PUBLIC	_sbox
-CONST	SEGMENT
+PUBLIC	_sbox_inv
+_DATA	SEGMENT
 _sbox	DB	038H
 	DB	0f1H
 	DB	0a6H
@@ -75,7 +76,7 @@ _sbox	DB	038H
 	DB	0caH
 	DB	093H
 	DB	056H
-	DB	0d3H
+_sbox_inv DB	0d3H
 	DB	0b0H
 	DB	0a6H
 	DB	05cH
@@ -139,43 +140,121 @@ _sbox	DB	038H
 	DB	0b7H
 	DB	0a1H
 	DB	042H
-CONST	ENDS
-;EXTRN	_memset:PROC
+_DATA	ENDS
+PUBLIC	_blkxor
+; Function compile flags: /Ogspy
+;	COMDAT _blkxor
+_TEXT	SEGMENT
+_dst$ = 8						; size = 4
+_src$ = 12						; size = 4
+_blkxor	PROC						; COMDAT
+; File c:\github\serpent\serpent.c
+; Line 15
+	mov	eax, DWORD PTR _dst$[esp-4]
+	mov	ecx, DWORD PTR _src$[esp-4]
+	push	4
+	pop	edx
+	sub	ecx, eax
+	push	esi
+$LL3@blkxor:
+; Line 16
+	mov	esi, DWORD PTR [ecx+eax]
+	xor	DWORD PTR [eax], esi
+	add	eax, 4
+	dec	edx
+	jne	SHORT $LL3@blkxor
+	pop	esi
+; Line 18
+	ret	0
+_blkxor	ENDP
+_TEXT	ENDS
+PUBLIC	_blkcpy
+; Function compile flags: /Ogspy
+;	COMDAT _blkcpy
+_TEXT	SEGMENT
+_dst$ = 8						; size = 4
+_src$ = 12						; size = 4
+_blkcpy	PROC						; COMDAT
+; Line 24
+	mov	eax, DWORD PTR _dst$[esp-4]
+	mov	ecx, DWORD PTR _src$[esp-4]
+	push	4
+	pop	edx
+	sub	ecx, eax
+	push	esi
+$LL3@blkcpy:
+; Line 25
+	mov	esi, DWORD PTR [ecx+eax]
+	mov	DWORD PTR [eax], esi
+	add	eax, 4
+	dec	edx
+	jne	SHORT $LL3@blkcpy
+	pop	esi
+; Line 27
+	ret	0
+_blkcpy	ENDP
+_TEXT	ENDS
+PUBLIC	_blkclr
+; Function compile flags: /Ogspy
+;	COMDAT _blkclr
+_TEXT	SEGMENT
+_blk$ = 8						; size = 4
+_blkclr	PROC						; COMDAT
+; Line 30
+	push	edi
+; Line 34
+	mov	edi, DWORD PTR _blk$[esp]
+	xor	eax, eax
+	stosd
+	stosd
+	stosd
+	stosd
+	pop	edi
+; Line 36
+	ret	0
+_blkclr	ENDP
+_TEXT	ENDS
+PUBLIC	_serpent_ip
 ; Function compile flags: /Ogspy
 ;	COMDAT _serpent_ip
 _TEXT	SEGMENT
-_i$ = 8							; size = 4
-_o$ = 12						; size = 4
+_in$ = 8						; size = 4
+_out$ = 12						; size = 4
 _serpent_ip PROC					; COMDAT
-; File c:\github\serpent\serpent.c
-; Line 32
+; Line 68
+	mov	edx, DWORD PTR _out$[esp-4]
 	push	ebx
 	push	esi
 	push	edi
-; Line 36
+	xor	eax, eax
+	mov	edi, edx
+	stosd
+	stosd
+	stosd
+; Line 70
 	push	16					; 00000010H
+	stosd
 	pop	ebx
-	push	ebx
-	push	0
-	push	DWORD PTR _o$[esp+16]
-	;call	_memset
-	mov	edx, DWORD PTR _o$[esp+20]
-	add	esp, 12					; 0000000cH
-$LL13@serpent_ip:
-; Line 39
+$LL6@serpent_ip:
+; Line 71
 	push	8
 	xor	esi, esi
 	pop	edi
 $LL3@serpent_ip:
-; Line 40
-	mov	ecx, DWORD PTR _i$[esp+8]
+; Line 72
 	mov	eax, esi
-	and	eax, 3
+	and	eax, -2147483645			; 80000003H
+	jns	SHORT $LN20@serpent_ip
+	dec	eax
+	or	eax, -4					; fffffffcH
+	inc	eax
+$LN20@serpent_ip:
+	mov	ecx, DWORD PTR _in$[esp+8]
 	lea	eax, DWORD PTR [ecx+eax*4]
 	mov	cl, BYTE PTR [eax]
 	shr	DWORD PTR [eax], 1
 	and	cl, 1
-; Line 41
+; Line 73
 	mov	cl, BYTE PTR [edx]
 	sete	al
 	dec	al
@@ -186,53 +265,63 @@ $LL3@serpent_ip:
 	dec	edi
 	mov	BYTE PTR [edx], al
 	jne	SHORT $LL3@serpent_ip
-; Line 38
+; Line 70
 	inc	edx
 	dec	ebx
-	jne	SHORT $LL13@serpent_ip
-; Line 44
+	jne	SHORT $LL6@serpent_ip
+; Line 76
 	pop	edi
 	pop	esi
 	pop	ebx
 	ret	0
 _serpent_ip ENDP
-; Function compile flags: /Ogspy
 _TEXT	ENDS
+PUBLIC	_serpent_fp
+; Function compile flags: /Ogspy
 ;	COMDAT _serpent_fp
 _TEXT	SEGMENT
-tv163 = -8						; size = 4
-tv73 = -4						; size = 4
-_i$ = 8							; size = 4
+tv286 = -8						; size = 4
+tv158 = -4						; size = 4
+_in$ = 8						; size = 4
+_out$ = 12						; size = 4
 _serpent_fp PROC					; COMDAT
-; _o$ = esi
-; Line 49
+; Line 82
 	push	ebp
 	mov	ebp, esp
 	push	ecx
 	push	ecx
-; Line 53
-	push	16					; 00000010H
-	push	0
-	push	esi
-	;call	_memset
-	mov	eax, DWORD PTR _i$[ebp]
-	add	esp, 12					; 0000000cH
 	push	ebx
-	mov	DWORD PTR tv163[ebp], 4
+	push	esi
+; Line 86
+	mov	esi, DWORD PTR _out$[ebp]
 	push	edi
-$LL13@serpent_fp:
-; Line 56
+	xor	eax, eax
+	mov	edi, esi
+	stosd
+	stosd
+	stosd
+	stosd
+; Line 88
+	mov	eax, DWORD PTR _in$[ebp]
+	mov	DWORD PTR tv286[ebp], 4
+$LL6@serpent_fp:
+; Line 89
 	xor	edi, edi
-	mov	DWORD PTR tv73[ebp], 32			; 00000020H
+	mov	DWORD PTR tv158[ebp], 32		; 00000020H
 $LL3@serpent_fp:
-; Line 57
+; Line 90
 	mov	cl, BYTE PTR [eax]
 	shr	DWORD PTR [eax], 1
-	and	cl, 1
-; Line 58
-	movzx	ecx, cl
+; Line 91
 	mov	edx, edi
-	and	edx, 3
+	and	cl, 1
+	and	edx, -2147483645			; 80000003H
+	jns	SHORT $LN20@serpent_fp
+	dec	edx
+	or	edx, -4					; fffffffcH
+	inc	edx
+$LN20@serpent_fp:
+	movzx	ecx, cl
 	neg	ecx
 	sbb	ecx, ecx
 	lea	edx, DWORD PTR [esi+edx*4]
@@ -241,608 +330,398 @@ $LL3@serpent_fp:
 	shr	ebx, 1
 	or	ecx, ebx
 	inc	edi
-	dec	DWORD PTR tv73[ebp]
+	dec	DWORD PTR tv158[ebp]
 	mov	DWORD PTR [edx], ecx
 	jne	SHORT $LL3@serpent_fp
-; Line 55
+; Line 88
 	add	eax, 4
-	dec	DWORD PTR tv163[ebp]
-	jne	SHORT $LL13@serpent_fp
+	dec	DWORD PTR tv286[ebp]
+	jne	SHORT $LL6@serpent_fp
 	pop	edi
+	pop	esi
 	pop	ebx
-; Line 61
+; Line 94
 	leave
 	ret	0
 _serpent_fp ENDP
 _TEXT	ENDS
-PUBLIC	__$ArrayPad$
-;EXTRN	___security_cookie:DWORD
-;EXTRN	@__security_check_cookie@4:PROC
+PUBLIC	_serpent_lt
 ; Function compile flags: /Ogspy
-;	COMDAT _sbox128x
+;	COMDAT _serpent_lt
 _TEXT	SEGMENT
-tv64 = -48						; size = 4
-tv302 = -44						; size = 4
-tv225 = -44						; size = 4
-tv590 = -40						; size = 4
-tv165 = -40						; size = 4
-_sb$ = -36						; size = 16
-_o$ = -20						; size = 16
-__$ArrayPad$ = -4					; size = 4
-_box$ = 8						; size = 1
-_sbox128x PROC						; COMDAT
-; _w$ = edi
-; Line 64
+_x1$ = -8						; size = 4
+_x3$ = -4						; size = 4
+_x$ = 8							; size = 4
+_type$ = 12						; size = 4
+_serpent_lt PROC					; COMDAT
+; Line 99
 	push	ebp
 	mov	ebp, esp
-	sub	esp, 48					; 00000030H
-	;mov	eax, DWORD PTR ___security_cookie
-	xor	eax, ebp
-	mov	DWORD PTR __$ArrayPad$[ebp], eax
-; Line 67
-	and	BYTE PTR _box$[ebp], 15			; 0000000fH
+	push	ecx
+	push	ecx
+; Line 108
+	cmp	DWORD PTR _type$[ebp], 0
+	mov	eax, DWORD PTR _x$[ebp]
+	mov	ecx, DWORD PTR [eax]
 	push	ebx
 	push	esi
-; Line 69
-	movzx	esi, BYTE PTR _box$[ebp]
-	push	8
-; Line 70
-	lea	ecx, DWORD PTR _sb$[ebp+1]
-	lea	esi, DWORD PTR _sbox[esi*8]
-	pop	edx
-$LL6@sbox128x:
-	mov	al, BYTE PTR [esi]
-; Line 72
-	mov	bl, al
-	shr	bl, 4
-; Line 73
-	and	al, 15					; 0000000fH
-	mov	BYTE PTR [ecx-1], bl
-	mov	BYTE PTR [ecx], al
-	inc	esi
-	add	ecx, 2
-	dec	edx
-	jne	SHORT $LL6@sbox128x
-; Line 75
-	push	16					; 00000010H
-	pop	ebx
-	push	ebx
-	push	edx
-	lea	eax, DWORD PTR _o$[ebp]
-	push	eax
-	;call	_memset
-	add	esp, 12					; 0000000cH
-	lea	esi, DWORD PTR _o$[ebp]
-	mov	DWORD PTR tv302[ebp], ebx
-$LL39@sbox128x:
-	mov	dl, BYTE PTR [esi]
-	xor	ebx, ebx
-	mov	DWORD PTR tv165[ebp], 8
-$LL11@sbox128x:
-	mov	eax, ebx
-	and	eax, 3
-	lea	eax, DWORD PTR [edi+eax*4]
-	mov	cl, BYTE PTR [eax]
-	shr	DWORD PTR [eax], 1
-	and	cl, 1
-	sete	al
-	dec	al
-	and	al, 128					; 00000080H
-	shr	dl, 1
-	or	dl, al
-	inc	ebx
-	dec	DWORD PTR tv165[ebp]
-	jne	SHORT $LL11@sbox128x
-	mov	BYTE PTR [esi], dl
-	inc	esi
-	dec	DWORD PTR tv302[ebp]
-	jne	SHORT $LL39@sbox128x
-; Line 77
-	push	16					; 00000010H
-	lea	ecx, DWORD PTR _o$[ebp]
-	pop	esi
-$LL3@sbox128x:
-; Line 78
-	movzx	eax, BYTE PTR [ecx]
-; Line 79
-	mov	edx, eax
-	shr	edx, 4
-; Line 80
-	mov	dl, BYTE PTR _sb$[ebp+edx]
-	shl	dl, 4
-; Line 81
-	and	eax, 15					; 0000000fH
-	or	dl, BYTE PTR _sb$[ebp+eax]
-; Line 82
-	mov	BYTE PTR [ecx], dl
-	inc	ecx
-	dec	esi
-	jne	SHORT $LL3@sbox128x
-; Line 84
-	push	16					; 00000010H
-	push	esi
+	mov	esi, DWORD PTR [eax+4]
 	push	edi
-	;call	_memset
-	add	esp, 12					; 0000000cH
-	lea	eax, DWORD PTR _o$[ebp]
-	mov	DWORD PTR tv64[ebp], 4
-$LL37@sbox128x:
-	mov	esi, DWORD PTR [eax]
-	and	DWORD PTR tv590[ebp], 0
-	mov	DWORD PTR tv225[ebp], 32		; 00000020H
-$LL38@sbox128x:
-	mov	cl, BYTE PTR [eax]
-	mov	edx, DWORD PTR tv590[ebp]
-	and	cl, 1
-	movzx	ecx, cl
-	and	edx, 3
-	shr	esi, 1
-	neg	ecx
-	sbb	ecx, ecx
-	lea	edx, DWORD PTR [edi+edx*4]
-	mov	ebx, DWORD PTR [edx]
-	and	ecx, -2147483648			; 80000000H
-	shr	ebx, 1
-	or	ecx, ebx
-	inc	DWORD PTR tv590[ebp]
-	dec	DWORD PTR tv225[ebp]
-	mov	DWORD PTR [eax], esi
-	mov	DWORD PTR [edx], ecx
-	jne	SHORT $LL38@sbox128x
-	add	eax, 4
-	dec	DWORD PTR tv64[ebp]
-	jne	SHORT $LL37@sbox128x
-; Line 85
-	mov	ecx, DWORD PTR __$ArrayPad$[ebp]
+	mov	edi, DWORD PTR [eax+8]
+	mov	eax, DWORD PTR [eax+12]
+	mov	DWORD PTR _x1$[ebp], esi
+	mov	DWORD PTR _x3$[ebp], eax
+	jne	SHORT $LN2@serpent_lt
+; Line 109
+	rol	ecx, 13					; 0000000dH
+; Line 110
+	rol	edi, 3
+; Line 111
+	mov	ebx, edi
+	xor	ebx, esi
+; Line 112
+	mov	esi, ecx
+	shl	esi, 3
+	xor	esi, eax
+	xor	ebx, ecx
+; Line 113
+	rol	ebx, 1
+	xor	esi, edi
+; Line 114
+	rol	esi, 7
+; Line 116
+	mov	edx, ebx
+	shl	edx, 7
+	mov	eax, esi
+	xor	eax, ebx
+	xor	edx, esi
+	xor	eax, ecx
+	xor	edx, edi
+; Line 117
+	rol	eax, 5
+; Line 118
+	ror	edx, 10					; 0000000aH
+; Line 119
+	jmp	SHORT $LN1@serpent_lt
+$LN2@serpent_lt:
+; Line 125
+	mov	ebx, DWORD PTR _x1$[ebp]
+	mov	edx, esi
+	shl	edx, 7
+	rol	edi, 10					; 0000000aH
+	xor	edx, edi
+	xor	edx, eax
+	ror	ecx, 5
+	xor	eax, ecx
+	xor	eax, esi
+	mov	esi, DWORD PTR _x3$[ebp]
+	ror	esi, 7
+; Line 126
+	mov	ecx, eax
+	shl	ecx, 3
+	xor	esi, ecx
+	xor	esi, edx
+	ror	ebx, 1
+; Line 127
+	xor	ebx, edx
+	xor	ebx, eax
+; Line 128
+	ror	edx, 3
+; Line 129
+	ror	eax, 13					; 0000000dH
+$LN1@serpent_lt:
+; Line 132
+	mov	ecx, DWORD PTR _x$[ebp]
+	pop	edi
+; Line 135
+	mov	DWORD PTR [ecx+12], esi
 	pop	esi
-	xor	ecx, ebp
+	mov	DWORD PTR [ecx+4], ebx
+	mov	DWORD PTR [ecx], eax
+	mov	DWORD PTR [ecx+8], edx
 	pop	ebx
-	;call	@__security_check_cookie@4
+; Line 136
 	leave
 	ret	0
-_sbox128x ENDP
+_serpent_lt ENDP
+_TEXT	ENDS
+PUBLIC	_serpent_gen_w
+; Function compile flags: /Ogspy
+;	COMDAT _serpent_gen_w
+_TEXT	SEGMENT
+_b$ = 8							; size = 4
+_i$ = 12						; size = 4
+_serpent_gen_w PROC					; COMDAT
+; Line 140
+	mov	ecx, DWORD PTR _b$[esp-4]
+	mov	eax, DWORD PTR [ecx+28]
+	xor	eax, DWORD PTR [ecx+20]
+	xor	eax, DWORD PTR [ecx+12]
+	xor	eax, DWORD PTR [ecx]
+	xor	eax, DWORD PTR _i$[esp-4]
+	xor	eax, -1640531527			; 9e3779b9H
+; Line 141
+	rol	eax, 11					; 0000000bH
+; Line 142
+	ret	0
+_serpent_gen_w ENDP
 _TEXT	ENDS
 PUBLIC	_sbox128
 ; Function compile flags: /Ogspy
 ;	COMDAT _sbox128
 _TEXT	SEGMENT
-_w$ = 8							; size = 4
-_box$ = 12						; size = 1
+_tmp_blk$ = -16						; size = 16
+_sb$ = -16						; size = 16
+_blk$ = 8						; size = 4
+_box_idx$ = 12						; size = 1
+_type$ = 16						; size = 4
 _sbox128 PROC						; COMDAT
-; Line 88
-	mov	al, BYTE PTR _box$[esp-4]
-	and	al, 7
-	movzx	eax, al
+; Line 145
+	push	ebp
+	mov	ebp, esp
+; Line 150
+	and	BYTE PTR _box_idx$[ebp], 7
+	sub	esp, 16					; 00000010H
+; Line 152
+	cmp	DWORD PTR _type$[ebp], 0
+	push	esi
+; Line 153
+	movzx	esi, BYTE PTR _box_idx$[ebp]
 	push	edi
-	mov	edi, DWORD PTR _w$[esp]
+	jne	SHORT $LN8@sbox128
+	lea	esi, DWORD PTR _sbox[esi*8]
+; Line 154
+	jmp	SHORT $LN7@sbox128
+$LN8@sbox128:
+; Line 155
+	lea	esi, DWORD PTR _sbox_inv[esi*8]
+$LN7@sbox128:
+; Line 158
+	push	8
+	pop	edx
+	mov	edi, esi
+	lea	ecx, DWORD PTR _sb$[ebp+1]
+	push	ebx
+$LL6@sbox128:
+; Line 159
+	mov	al, BYTE PTR [edi]
+; Line 160
+	mov	bl, al
+	shr	bl, 4
+; Line 161
+	and	al, 15					; 0000000fH
+	mov	BYTE PTR [ecx-1], bl
+	mov	BYTE PTR [ecx], al
+	inc	edi
+	add	ecx, 2
+	dec	edx
+	jne	SHORT $LL6@sbox128
+; Line 164
+	lea	eax, DWORD PTR _tmp_blk$[ebp]
 	push	eax
-	call	_sbox128x
+	push	DWORD PTR _blk$[ebp]
+	call	_serpent_ip
+	pop	ecx
+	pop	ecx
+	push	16					; 00000010H
+	pop	edi
+	lea	ecx, DWORD PTR _tmp_blk$[ebp]
+	pop	ebx
+$LL3@sbox128:
+; Line 167
+	movzx	eax, BYTE PTR [ecx]
+; Line 168
+	mov	edx, eax
+	shr	edx, 4
+; Line 169
+	mov	dl, BYTE PTR [edx+esi]
+	shl	dl, 4
+; Line 170
+	and	eax, 15					; 0000000fH
+	or	dl, BYTE PTR [eax+esi]
+; Line 171
+	mov	BYTE PTR [ecx], dl
+	inc	ecx
+	dec	edi
+	jne	SHORT $LL3@sbox128
+; Line 173
+	push	DWORD PTR _blk$[ebp]
+	lea	eax, DWORD PTR _tmp_blk$[ebp]
+	push	eax
+	call	_serpent_fp
+	pop	ecx
 	pop	ecx
 	pop	edi
-; Line 89
+	pop	esi
+; Line 174
+	leave
 	ret	0
 _sbox128 ENDP
 _TEXT	ENDS
-PUBLIC	_inv_sbox128
-; Function compile flags: /Ogspy
-;	COMDAT _inv_sbox128
-_TEXT	SEGMENT
-_w$ = 8							; size = 4
-_box$ = 12						; size = 1
-_inv_sbox128 PROC					; COMDAT
-; Line 92
-	mov	al, BYTE PTR _box$[esp-4]
-	and	al, 7
-	or	al, 8
-	movzx	eax, al
-	push	edi
-	mov	edi, DWORD PTR _w$[esp]
-	push	eax
-	call	_sbox128x
-	pop	ecx
-	pop	edi
-; Line 93
-	ret	0
-_inv_sbox128 ENDP
-_TEXT	ENDS
-PUBLIC	_memxor
-; Function compile flags: /Ogspy
-;	COMDAT _memxor
-_TEXT	SEGMENT
-_dest$ = 8						; size = 4
-_src$ = 12						; size = 4
-_n$ = 16						; size = 2
-_memxor	PROC						; COMDAT
-; Line 95
-	push	ebp
-	mov	ebp, esp
-; Line 96
-	cmp	WORD PTR _n$[ebp], 0
-	je	SHORT $LN6@memxor
-	mov	ecx, DWORD PTR _src$[ebp]
-	mov	eax, DWORD PTR _dest$[ebp]
-	sub	ecx, eax
-$LL2@memxor:
-; Line 97
-	mov	dl, BYTE PTR [ecx+eax]
-	add	DWORD PTR _n$[ebp], 65535		; 0000ffffH
-	xor	BYTE PTR [eax], dl
-; Line 98
-	inc	eax
-	cmp	WORD PTR _n$[ebp], 0
-	jne	SHORT $LL2@memxor
-$LN6@memxor:
-; Line 101
-	pop	ebp
-	ret	0
-_memxor	ENDP
-_TEXT	ENDS
-PUBLIC	_rotl32
-; Function compile flags: /Ogspy
-;	COMDAT _rotl32
-_TEXT	SEGMENT
-_a$ = 8							; size = 4
-_n$ = 12						; size = 1
-_rotl32	PROC						; COMDAT
-; Line 106
-	movzx	ecx, BYTE PTR _n$[esp-4]
-	mov	eax, DWORD PTR _a$[esp-4]
-	rol	eax, cl
-; Line 107
-	ret	0
-_rotl32	ENDP
-_TEXT	ENDS
-PUBLIC	_rotr32
-; Function compile flags: /Ogspy
-;	COMDAT _rotr32
-_TEXT	SEGMENT
-_a$ = 8							; size = 4
-_n$ = 12						; size = 1
-_rotr32	PROC						; COMDAT
-; Line 110
-	movzx	ecx, BYTE PTR _n$[esp-4]
-	mov	eax, DWORD PTR _a$[esp-4]
-	ror	eax, cl
-; Line 111
-	ret	0
-_rotr32	ENDP
-; Function compile flags: /Ogspy
-_TEXT	ENDS
-;	COMDAT _serpent_lt
-_TEXT	SEGMENT
-_serpent_lt PROC					; COMDAT
-; _b$ = eax
-; Line 121
-	mov	edx, DWORD PTR [eax+4]
-	push	esi
-	mov	esi, DWORD PTR [eax]
-	rol	esi, 13					; 0000000dH
-	push	edi
-	mov	edi, DWORD PTR [eax+8]
-	rol	edi, 3
-	xor	edx, edi
-; Line 122
-	mov	ecx, esi
-	shl	ecx, 3
-	xor	ecx, DWORD PTR [eax+12]
-	xor	edx, esi
-	xor	ecx, edi
-; Line 123
-	rol	edx, 1
-; Line 124
-	rol	ecx, 7
-	mov	DWORD PTR [eax+12], ecx
-; Line 125
-	xor	ecx, edx
-	xor	ecx, esi
-	mov	DWORD PTR [eax], ecx
-; Line 126
-	mov	ecx, edx
-	shl	ecx, 7
-	xor	ecx, DWORD PTR [eax+12]
-	mov	DWORD PTR [eax+4], edx
-	xor	ecx, edi
-; Line 127
-	rol	DWORD PTR [eax], 5
-	pop	edi
-	mov	DWORD PTR [eax+8], ecx
-; Line 128
-	ror	DWORD PTR [eax+8], 10			; 0000000aH
-	pop	esi
-; Line 129
-	ret	0
-_serpent_lt ENDP
-; Function compile flags: /Ogspy
-_TEXT	ENDS
-;	COMDAT _serpent_inv_lt
-_TEXT	SEGMENT
-_serpent_inv_lt PROC					; COMDAT
-; _b$ = eax
-; Line 134
-	mov	ecx, DWORD PTR [eax+4]
-	mov	edx, DWORD PTR [eax+12]
-	push	ebx
-	push	esi
-	mov	esi, DWORD PTR [eax+8]
-	rol	esi, 10					; 0000000aH
-	push	edi
-	mov	edi, ecx
-	shl	edi, 7
-	xor	esi, edi
-	xor	esi, edx
-	mov	DWORD PTR [eax+8], esi
-	mov	esi, DWORD PTR [eax]
-; Line 138
-	mov	edi, DWORD PTR [eax+8]
-	ror	esi, 5
-	xor	esi, edx
-	xor	esi, ecx
-	ror	edx, 7
-	mov	ebx, esi
-	shl	ebx, 3
-	xor	edx, ebx
-	xor	edx, edi
-	ror	ecx, 1
-; Line 139
-	xor	ecx, esi
-	xor	ecx, edi
-; Line 140
-	ror	edi, 3
-	mov	DWORD PTR [eax], esi
-; Line 141
-	ror	esi, 13					; 0000000dH
-	mov	DWORD PTR [eax+8], edi
-	pop	edi
-	mov	DWORD PTR [eax], esi
-	pop	esi
-	mov	DWORD PTR [eax+12], edx
-	mov	DWORD PTR [eax+4], ecx
-	pop	ebx
-; Line 142
-	ret	0
-_serpent_inv_lt ENDP
-; Function compile flags: /Ogspy
-_TEXT	ENDS
-;	COMDAT _serpent_gen_w
-_TEXT	SEGMENT
-_serpent_gen_w PROC					; COMDAT
-; _b$ = ecx
-; _i$ = edx
-; Line 148
-	mov	eax, DWORD PTR [ecx+28]
-	xor	eax, DWORD PTR [ecx+20]
-; Line 150
-	movzx	edx, dl
-	xor	eax, DWORD PTR [ecx+12]
-	xor	eax, edx
-	xor	eax, DWORD PTR [ecx]
-	xor	eax, -1640531527			; 9e3779b9H
-	rol	eax, 11					; 0000000bH
-; Line 151
-	ret	0
-_serpent_gen_w ENDP
-_TEXT	ENDS
-PUBLIC	_ctx$GSCopy$
-PUBLIC	__$ArrayPad$
-PUBLIC	_serpent_init
+PUBLIC	_serpent_setkey
 ;EXTRN	_memmove:PROC
 ;EXTRN	_memcpy:PROC
+;EXTRN	_memset:PROC
 ; Function compile flags: /Ogspy
-;	COMDAT _serpent_init
+;	COMDAT _serpent_setkey
 _TEXT	SEGMENT
-_ctx$GSCopy$ = -40					; size = 4
-_buffer$ = -36						; size = 32
-__$ArrayPad$ = -4					; size = 4
+_x$ = -32						; size = 32
 _key$ = 8						; size = 4
-_keysize_b$ = 12					; size = 2
-_ctx$ = 16						; size = 4
-_serpent_init PROC					; COMDAT
-; Line 153
+_input$ = 12						; size = 4
+tv334 = 16						; size = 4
+_inlen$ = 16						; size = 4
+_serpent_setkey PROC					; COMDAT
+; Line 177
 	push	ebp
 	mov	ebp, esp
-	sub	esp, 40					; 00000028H
-	;mov	eax, DWORD PTR ___security_cookie
-	xor	eax, ebp
-	mov	DWORD PTR __$ArrayPad$[ebp], eax
+	sub	esp, 32					; 00000020H
 	push	ebx
-	mov	ebx, DWORD PTR _key$[ebp]
 	push	esi
-	movzx	esi, WORD PTR _keysize_b$[ebp]
 	push	edi
-	mov	edi, DWORD PTR _ctx$[ebp]
-; Line 157
-	mov	eax, 256				; 00000100H
-	cmp	si, ax
-; Line 168
-	mov	DWORD PTR _ctx$GSCopy$[ebp], edi
+; Line 185
 	push	32					; 00000020H
-	lea	eax, DWORD PTR _buffer$[ebp]
-	jae	SHORT $LN11@serpent_in
-; Line 159
-	push	0
+	xor	edi, edi
+	lea	eax, DWORD PTR _x$[ebp]
+	push	edi
 	push	eax
 	;call	_memset
-; Line 160
-	lea	eax, DWORD PTR [esi+7]
-	cdq
-	and	edx, 7
-	add	eax, edx
-	sar	eax, 3
-	push	eax
-	lea	eax, DWORD PTR _buffer$[ebp]
-	push	ebx
+; Line 186
+	mov	esi, DWORD PTR _inlen$[ebp]
+	push	esi
+	push	DWORD PTR _input$[ebp]
+	lea	eax, DWORD PTR _x$[ebp]
 	push	eax
 	;call	_memcpy
-; Line 161
-	mov	eax, esi
-	shr	eax, 3
-	mov	ecx, esi
 	add	esp, 24					; 00000018H
-	and	ecx, -2147483641			; 80000007H
-	lea	eax, DWORD PTR _buffer$[ebp+eax]
-	jns	SHORT $LN26@serpent_in
-	dec	ecx
-	or	ecx, -8					; fffffff8H
-	inc	ecx
-$LN26@serpent_in:
-	mov	dl, 1
-	shl	dl, cl
-	or	BYTE PTR [eax], dl
-; Line 162
-	jmp	SHORT $LN10@serpent_in
-$LN11@serpent_in:
-; Line 164
-	push	ebx
-	push	eax
-	;call	_memcpy
-	add	esp, 12					; 0000000cH
-$LN10@serpent_in:
-; Line 166
-	xor	bl, bl
-	mov	esi, edi
-$LL9@serpent_in:
-; Line 167
+; Line 189
+	cmp	esi, 32					; 00000020H
+	jae	SHORT $LN10@serpent_se
+; Line 190
+	lea	eax, DWORD PTR _x$[ebp+esi]
+	or	BYTE PTR [eax], 1
+$LN10@serpent_se:
+; Line 193
+	mov	esi, DWORD PTR _key$[ebp]
+	mov	DWORD PTR tv334[ebp], 33		; 00000021H
+$LL9@serpent_se:
+; Line 194
 	push	4
-	pop	edi
-$LL6@serpent_in:
-; Line 168
-	movzx	eax, bl
-	xor	eax, DWORD PTR _buffer$[ebp+20]
-; Line 169
-	push	28					; 0000001cH
-	xor	eax, DWORD PTR _buffer$[ebp+12]
-	xor	eax, DWORD PTR _buffer$[ebp]
-	xor	eax, DWORD PTR _buffer$[ebp+28]
-	xor	eax, -1640531527			; 9e3779b9H
-	rol	eax, 11					; 0000000bH
-	mov	DWORD PTR [esi], eax
-	lea	eax, DWORD PTR _buffer$[ebp+4]
+	pop	ebx
+$LL6@serpent_se:
+; Line 195
+	lea	eax, DWORD PTR _x$[ebp]
+	push	edi
 	push	eax
-	lea	eax, DWORD PTR _buffer$[ebp]
+	call	_serpent_gen_w
+	mov	DWORD PTR [esi], eax
+; Line 198
+	push	28					; 0000001cH
+	lea	eax, DWORD PTR _x$[ebp+4]
+	push	eax
+	lea	eax, DWORD PTR _x$[ebp]
 	push	eax
 	;call	_memmove
-; Line 170
+; Line 199
 	mov	eax, DWORD PTR [esi]
-	add	esp, 12					; 0000000cH
-	inc	bl
+	add	esp, 20					; 00000014H
 	add	esi, 4
-	dec	edi
-	mov	DWORD PTR _buffer$[ebp+28], eax
-	jne	SHORT $LL6@serpent_in
-; Line 166
-	cmp	bl, 132					; 00000084H
-	jb	SHORT $LL9@serpent_in
-; Line 173
-	mov	edi, DWORD PTR _ctx$GSCopy$[ebp]
+	inc	edi
+	dec	ebx
+	mov	DWORD PTR _x$[ebp+28], eax
+	jne	SHORT $LL6@serpent_se
+; Line 193
+	dec	DWORD PTR tv334[ebp]
+	jne	SHORT $LL9@serpent_se
+; Line 202
+	mov	esi, DWORD PTR _key$[ebp]
 	xor	bl, bl
-$LL3@serpent_in:
-; Line 174
+$LL3@serpent_se:
+; Line 203
 	mov	al, 3
 	sub	al, bl
-	and	al, 7
 	movzx	eax, al
+	push	0
 	push	eax
-	call	_sbox128x
+	push	esi
+	call	_sbox128
+	add	esp, 12					; 0000000cH
 	inc	bl
-	add	edi, 16					; 00000010H
-	pop	ecx
-	cmp	bl, 33					; 00000021H
-	jb	SHORT $LL3@serpent_in
-; Line 176
-	mov	ecx, DWORD PTR __$ArrayPad$[ebp]
+	add	esi, 16					; 00000010H
+	cmp	bl, 32					; 00000020H
+	jbe	SHORT $LL3@serpent_se
 	pop	edi
 	pop	esi
-	xor	ecx, ebp
 	pop	ebx
-	;call	@__security_check_cookie@4
+; Line 205
 	leave
 	ret	0
-_serpent_init ENDP
+_serpent_setkey ENDP
 _TEXT	ENDS
 PUBLIC	_serpent_enc
 ; Function compile flags: /Ogspy
 ;	COMDAT _serpent_enc
 _TEXT	SEGMENT
-_i$ = -1						; size = 1
-_buffer$ = 8						; size = 4
-_ctx$ = 12						; size = 4
+_key$ = 8						; size = 4
+_i$ = 12						; size = 1
+_pt$ = 12						; size = 4
+_ct$ = 16						; size = 4
 _serpent_enc PROC					; COMDAT
-; Line 178
+; Line 208
 	push	ebp
 	mov	ebp, esp
-	push	ecx
-	push	ebx
-; Line 181
-	mov	ebx, DWORD PTR _ctx$[ebp]
 	push	esi
+; Line 214
+	mov	esi, DWORD PTR _ct$[ebp]
 	push	edi
-	mov	edi, DWORD PTR _buffer$[ebp]
+	push	DWORD PTR _pt$[ebp]
+	push	esi
+	call	_blkcpy
+; Line 216
+	mov	edi, DWORD PTR _key$[ebp]
+	pop	ecx
+	pop	ecx
 	mov	BYTE PTR _i$[ebp], 0
-$LL26@serpent_en:
-; Line 182
+$LL5@serpent_en:
+; Line 218
 	movzx	eax, BYTE PTR _i$[ebp]
 	shl	eax, 4
-	push	16					; 00000010H
-	add	eax, ebx
+	add	eax, edi
 	push	eax
-	push	edi
-	call	_memxor
-; Line 183
-	mov	al, BYTE PTR _i$[ebp]
-	and	al, 7
-	movzx	eax, al
-	push	eax
-	call	_sbox128x
-	add	esp, 16					; 00000010H
-; Line 184
+	push	esi
+	call	_blkxor
+; Line 220
+	push	0
+	push	DWORD PTR _i$[ebp]
+	push	esi
+	call	_sbox128
+	add	esp, 20					; 00000014H
+; Line 222
 	cmp	BYTE PTR _i$[ebp], 31			; 0000001fH
 	jne	SHORT $LN2@serpent_en
-; Line 185
-	push	16					; 00000010H
-	lea	eax, DWORD PTR [ebx+512]
+; Line 223
+	lea	eax, DWORD PTR [edi+512]
 	push	eax
-	push	edi
-	call	_memxor
-	add	esp, 12					; 0000000cH
-; Line 186
-	jmp	SHORT $LN4@serpent_en
+	push	esi
+	call	_blkxor
+; Line 224
+	jmp	SHORT $LN10@serpent_en
 $LN2@serpent_en:
-; Line 187
-	mov	edx, DWORD PTR [edi]
-	mov	esi, DWORD PTR [edi+8]
-	mov	ecx, DWORD PTR [edi+4]
-	rol	edx, 13					; 0000000dH
-	rol	esi, 3
-	xor	ecx, esi
-	mov	eax, edx
-	shl	eax, 3
-	xor	eax, esi
-	xor	eax, DWORD PTR [edi+12]
-	xor	ecx, edx
-	rol	ecx, 1
-	rol	eax, 7
-	mov	DWORD PTR [edi+12], eax
-	xor	eax, ecx
-	xor	eax, edx
-	mov	DWORD PTR [edi], eax
-	mov	eax, ecx
-	shl	eax, 7
-	xor	eax, esi
-	xor	eax, DWORD PTR [edi+12]
-	rol	DWORD PTR [edi], 5
-	mov	DWORD PTR [edi+8], eax
-	ror	DWORD PTR [edi+8], 10			; 0000000aH
-	mov	DWORD PTR [edi+4], ecx
-$LN4@serpent_en:
-; Line 181
+; Line 226
+	push	0
+	push	esi
+	call	_serpent_lt
+$LN10@serpent_en:
+; Line 216
 	inc	BYTE PTR _i$[ebp]
 	cmp	BYTE PTR _i$[ebp], 32			; 00000020H
-	jb	$LL26@serpent_en
+; Line 226
+	pop	ecx
+	pop	ecx
+	jb	SHORT $LL5@serpent_en
 	pop	edi
 	pop	esi
-	pop	ebx
-; Line 190
-	leave
+; Line 229
+	pop	ebp
 	ret	0
 _serpent_enc ENDP
 _TEXT	ENDS
@@ -850,89 +729,64 @@ PUBLIC	_serpent_dec
 ; Function compile flags: /Ogspy
 ;	COMDAT _serpent_dec
 _TEXT	SEGMENT
-_i$ = -1						; size = 1
-_buffer$ = 8						; size = 4
-_ctx$ = 12						; size = 4
+_key$ = 8						; size = 4
+_i$ = 12						; size = 1
+_ct$ = 12						; size = 4
+_pt$ = 16						; size = 4
 _serpent_dec PROC					; COMDAT
-; Line 192
+; Line 232
 	push	ebp
 	mov	ebp, esp
-	push	ecx
-	push	ebx
 	push	esi
+; Line 238
+	mov	esi, DWORD PTR _pt$[ebp]
 	push	edi
-; Line 195
-	mov	edi, DWORD PTR _buffer$[ebp]
+	push	DWORD PTR _ct$[ebp]
+	push	esi
+	call	_blkcpy
+; Line 240
+	mov	edi, DWORD PTR _key$[ebp]
+	pop	ecx
+	pop	ecx
 	mov	BYTE PTR _i$[ebp], 31			; 0000001fH
-$LL26@serpent_de:
-; Line 196
+$LL5@serpent_de:
+; Line 241
 	cmp	BYTE PTR _i$[ebp], 31			; 0000001fH
 	jne	SHORT $LN2@serpent_de
-; Line 197
-	mov	eax, DWORD PTR _ctx$[ebp]
-	push	16					; 00000010H
-	add	eax, 512				; 00000200H
+; Line 243
+	lea	eax, DWORD PTR [edi+512]
 	push	eax
-	push	edi
-	call	_memxor
-	add	esp, 12					; 0000000cH
-; Line 198
-	jmp	SHORT $LN8@serpent_de
+	push	esi
+	call	_blkxor
+; Line 244
+	jmp	SHORT $LN10@serpent_de
 $LN2@serpent_de:
-; Line 199
-	mov	eax, DWORD PTR [edi+4]
-	mov	edx, DWORD PTR [edi+8]
-	mov	ecx, DWORD PTR [edi+12]
-	rol	edx, 10					; 0000000aH
-	mov	esi, eax
-	shl	esi, 7
-	xor	edx, esi
-	xor	edx, ecx
-	mov	DWORD PTR [edi+8], edx
-	mov	edx, DWORD PTR [edi]
-	mov	esi, DWORD PTR [edi+8]
-	ror	edx, 5
-	xor	edx, ecx
-	xor	edx, eax
-	ror	ecx, 7
-	mov	ebx, edx
-	shl	ebx, 3
-	xor	ecx, ebx
-	xor	ecx, esi
-	ror	eax, 1
-	xor	eax, edx
-	xor	eax, esi
-	mov	DWORD PTR [edi], edx
-	ror	esi, 3
-	ror	edx, 13					; 0000000dH
-	mov	DWORD PTR [edi+12], ecx
-	mov	DWORD PTR [edi+4], eax
-	mov	DWORD PTR [edi+8], esi
-	mov	DWORD PTR [edi], edx
-$LN8@serpent_de:
-; Line 201
-	mov	al, BYTE PTR _i$[ebp]
-	and	al, 7
-	or	al, 8
-	movzx	eax, al
-	push	eax
-	call	_sbox128x
-; Line 202
+; Line 245
+	push	1
+	push	esi
+	call	_serpent_lt
+$LN10@serpent_de:
+	pop	ecx
+	pop	ecx
+; Line 248
+	push	1
+	push	DWORD PTR _i$[ebp]
+	push	esi
+	call	_sbox128
+; Line 250
 	movsx	eax, BYTE PTR _i$[ebp]
 	shl	eax, 4
-	add	eax, DWORD PTR _ctx$[ebp]
-	push	16					; 00000010H
+	add	eax, edi
 	push	eax
-	push	edi
-	call	_memxor
-	add	esp, 16					; 00000010H
+	push	esi
+	call	_blkxor
+	add	esp, 20					; 00000014H
 	dec	BYTE PTR _i$[ebp]
-	jns	$LL26@serpent_de
+	jns	SHORT $LL5@serpent_de
 	pop	edi
 	pop	esi
-	pop	ebx
-; Line 204
-	leave
+; Line 252
+	pop	ebp
 	ret	0
 _serpent_dec ENDP
 _TEXT	ENDS

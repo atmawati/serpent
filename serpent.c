@@ -9,8 +9,7 @@
 #include "serpent.h"
 
 // xor dst blk by src
-void blkxor (serpent_blk *dst, serpent_blk *src)
-{
+void blkxor (serpent_blk *dst, serpent_blk *src) {
   uint8_t i;
 
   for (i=0; i<SERPENT_BLK_LEN/4; i++) {
@@ -19,8 +18,7 @@ void blkxor (serpent_blk *dst, serpent_blk *src)
 }
 
 // copy src blk to dst
-void blkcpy (serpent_blk *dst, serpent_blk *src)
-{
+void blkcpy (serpent_blk *dst, serpent_blk *src) {
   uint8_t i;
 
   for (i=0; i<SERPENT_BLK_LEN/4; i++) {
@@ -29,16 +27,15 @@ void blkcpy (serpent_blk *dst, serpent_blk *src)
 }
 
 // clear block
-void blkclr (serpent_blk *blk)
-{
+void blkclr (serpent_blk *blk) {
   uint8_t i;
 
-  for (i=0; i<SERPENT_BLK_LEN; i++) {
+  for (i=0; i<SERPENT_BLK_LEN/4; i++) {
     blk->v32[i] = 0;
   }
 }
 
-uint8_t sbox[8][16] = 
+uint8_t sbox[8][8] = 
 { { 0x38, 0xF1, 0xA6, 0x5B, 0xED, 0x42, 0x70, 0x9C },
   { 0xFC, 0x27, 0x90, 0x5A, 0x1B, 0xE8, 0x6D, 0x34 }, 
   { 0x86, 0x79, 0x3C, 0xAF, 0xD1, 0xE4, 0x0B, 0x52 },
@@ -49,7 +46,7 @@ uint8_t sbox[8][16] =
   { 0x1D, 0xF0, 0xE8, 0x2B, 0x74, 0xCA, 0x93, 0x56 }
 };
 
-uint8_t sbox_inv[8][16] =
+uint8_t sbox_inv[8][8] =
 { { 0xD3, 0xB0, 0xA6, 0x5C, 0x1E, 0x47, 0xF9, 0x82 },
   { 0x58, 0x2E, 0xF6, 0xC3, 0xB4, 0x79, 0x1D, 0xA0 },
   { 0xC9, 0xF4, 0xBE, 0x12, 0x03, 0x6D, 0x58, 0xA7 },
@@ -138,15 +135,15 @@ void serpent_lt (serpent_blk* x, int type)
   x->v32[3]=x3;
 }
 
-uint32_t serpent_gen_w (uint32_t *b, uint8_t i) {
+uint32_t serpent_gen_w (uint32_t *b, uint32_t i) {
   uint32_t ret;
-  ret = b[0] ^ b[3] ^ b[5] ^ b[7] ^ GOLDEN_RATIO ^ (uint32_t)i;
+  ret = b[0] ^ b[3] ^ b[5] ^ b[7] ^ GOLDEN_RATIO ^ i;
   return ROL32(ret, 11);
 } 
 
 void sbox128 (serpent_blk *blk, uint8_t box_idx, int type) 
 {
-  serpent_blk tmp_blk;
+  serpent_blk tmp_blk, sb;
   uint8_t *sbp;
   uint8_t i, x, t;
   
@@ -158,13 +155,19 @@ void sbox128 (serpent_blk *blk, uint8_t box_idx, int type)
     sbp=(uint8_t*)&sbox_inv[box_idx][0];
   }
   
+  for (i=0; i<8; i++) {
+    t = sbp[i];
+    sb.v8[2*i+0] = t >> 4;
+    sb.v8[2*i+1] = t & 0xf;
+  }
+  
   serpent_ip (blk, &tmp_blk);
   
   for (i=0; i<SERPENT_BLK_LEN; i++) {
     t = tmp_blk.v8[i];
-    x = sbp[t >> 4];
+    x = sb.v8[t >> 4];
     x <<= 4;
-    x |= sbp[t & 0xf];
+    x |= sb.v8[t & 0xf];
     tmp_blk.v8[i] = x;
   }
   serpent_fp (&tmp_blk, blk);
@@ -188,7 +191,6 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
   }
 
   for (i=0; i<=SERPENT_ROUNDS; i++) {
-    printf ("\nround %i", i);
     for (j=0; j<4; j++) {
       key->x[i].v32[j] = serpent_gen_w (x.v32, i*4+j);
       
@@ -198,7 +200,6 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
     }
   }
   for (i=0; i<=SERPENT_ROUNDS; i++) {
-    printf ("\nround %i", i);
     sbox128 (&key->x[i], 3 - i, SERPENT_ENCRYPT);
   }
 }
