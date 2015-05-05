@@ -1,47 +1,55 @@
-/* serpent.h */
-/*
-    This file is part of the AVR-Crypto-Lib.
-    Copyright (C) 2008  Daniel Otte (daniel.otte@rub.de)
 
-    This program is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+// SERPENT in C
+// Odzhan
 
-    You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-/** \file   serpent.h
- * \author  Daniel Otte
- * \license GPLv3
- * \brief a implementation of the serpent cipher for avr microcontrollers
- */
-
-#ifndef SERPENT_H_
-#define SERPENT_H_
+#ifndef SERPENT_H
+#define SERPENT_H
 
 #include <stdint.h>
 
-typedef uint32_t serpent_subkey_t[4];
+#define GOLDEN_RATIO    0x9e3779b9l
 
-typedef struct serpent_ctx_st {
-	serpent_subkey_t k[33];
-}  serpent_ctx_t;
+#define SERPENT_ROUNDS  32
+#define SERPENT_BLK_LEN 16
 
-#define SERPENT_KEY128 128
-#define SERPENT_KEY192 192
-#define SERPENT_KEY256 256
+#define SERPENT_KEY128  16
+#define SERPENT_KEY192  24
+#define SERPENT_KEY256  32
 
+#define SERPENT_ENCRYPT  0
+#define SERPENT_DECRYPT  1
 
-/* key must be 256bit (32 byte) large! */
-void serpent_init(const void *key, uint16_t keysize_b, serpent_ctx_t *ctx);
-void serpent_enc(void *buffer, const serpent_ctx_t *ctx);
-void serpent_dec(void *buffer, const serpent_ctx_t *ctx);
+typedef union _serpent_blk_t {
+  uint8_t v8[SERPENT_BLK_LEN];
+  uint32_t v32[SERPENT_BLK_LEN/4];
+  uint64_t v64;
+} serpent_blk;
 
+typedef struct serpent_key_t {
+  serpent_blk x[SERPENT_ROUNDS+1];
+} SERPENT_KEY;
+  
+#define ROL32(a, n)(((a) << (n)) | (((a) & 0xffffffff) >> (32 - (n))))
+#define ROR32(a, n)((((a) & 0xffffffff) >> (n)) | ((a) << (32 - (n))))
 
-#endif /*SERPENT_H_*/
+#ifdef BIGENDIAN
+# define SWAP32(n) (n)
+#else
+# define SWAP32(n) \
+    ROR32((((n & 0xFF00FF00) >> 8) | ((n & 0x00FF00FF) << 8)), 16)
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void serpent_setkey (SERPENT_KEY*, void*, uint32_t);
+void serpent_enc (SERPENT_KEY*, void*, void*);
+void serpent_dec (SERPENT_KEY*, void*, void*);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
