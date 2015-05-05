@@ -29,7 +29,7 @@ typedef union _serpent_blk_t {
 typedef struct serpent_key_t {
   serpent_blk x[SERPENT_ROUNDS+1];
 } SERPENT_KEY;
-  
+
 #define ROL32(a, n)(((a) << (n)) | (((a) & 0xffffffff) >> (32 - (n))))
 #define ROR32(a, n)((((a) & 0xffffffff) >> (n)) | ((a) << (32 - (n))))
 
@@ -37,16 +37,16 @@ typedef struct serpent_key_t {
 # define SWAP32(n) (n)
 #else
 # define SWAP32(n) \
-    ROR32((((n & 0xFF00FF00) >> 8) | ((n & 0x00FF00FF) << 8)), 16)
+  ROR32((((n & 0xFF00FF00) >> 8) | ((n & 0x00FF00FF) << 8)), 16)
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void serpent_setkey (SERPENT_KEY*, void*, uint32_t);
-void serpent_enc (SERPENT_KEY*, void*, void*);
-void serpent_dec (SERPENT_KEY*, void*, void*);
+  void serpent_setkey (SERPENT_KEY*, void*, uint32_t);
+  void serpent_enc (SERPENT_KEY*, void*, void*);
+  void serpent_dec (SERPENT_KEY*, void*, void*);
 
 #ifdef __cplusplus
 }

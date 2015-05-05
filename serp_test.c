@@ -67,16 +67,16 @@ int main (int argc, char *argv[])
     // set key 
     serpent_setkey (&serpent_key, key, klen);
     // encrypt
-    serpent_enc (&serpent_key, pt1, ct1);
+    //serpent_enc (&serpent_key, pt1, ct1);
   
     if (memcmp (ct1, ct2, clen) == 0) {
-      printf ("\n\nSelf-test for key length %i OK", klen*8);
+      printf ("\n\nSelf-test for key length %i OK", klen);
       serpent_dec (&serpent_key, ct2, pt2);
       if (memcmp (pt1, pt2, plen) == 0) {
-        printf ("\nDecryption okay for key length %i", klen*8);
+        printf ("\nDecryption okay for key length %i", klen);
       }
     } else {
-      printf ("\nSelf-test for key length %i failed\n", klen*8);
+      printf ("\nSelf-test for key length %i failed\n", klen);
     }
   }
   return 0;
