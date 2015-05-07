@@ -1,9 +1,68 @@
 
 
+; SERPENT in x86 assembly
+; Odzhan
+
 .686
-.model flat
+.model flat, stdcall
+
+SERPENT_ENCRYPT equ 0
+SERPENT_DECRYPT equ 1
+SERPENT_ROUNDS  equ 32
+SERPENT_BLK_LEN equ 16
 
 .code
+
+; *****************************
+; xor block
+;
+; esi=source
+; edi=destination
+; *****************************
+blkxor proc
+  pushad
+  push   SERPENT_BLK_LEN/4
+  pop    ecx
+xor_blk:
+  lodsd
+  xor    eax, [edi]
+  stosd
+  loop   xor_blk
+  popad
+  ret
+blkxor endp
+
+; *****************************
+; copy block
+;
+; esi=source
+; edi=destination
+; *****************************
+blkcpy proc
+  pushad
+  movsd
+  movsd
+  movsd
+  movsd
+  popad
+  ret
+blkcpy endp
+
+; *****************************
+; clear block
+;
+; edi=blk
+; *****************************
+blkclr proc
+  pushad
+  xor    eax, eax
+  stosd
+  stosd
+  stosd
+  stosd
+  popad
+  ret
+blkclr endp
 
 SHR_O macro a:req, cy:req
   ; c = a & 1;
@@ -21,12 +80,14 @@ SHR_I macro a:req, cy:req
   shr   a, 1
 endm
 
-serpent_ip proc input:dword, output:dword
+serpent_ip proc stdcall input:dword, output:dword
   local n:dword
   local m:dword
   
   pushad
+  and    [n], 0
   .repeat
+    and    [m], 0
     .repeat
       mov    eax, [m]
       and    ebx, 3
@@ -43,7 +104,10 @@ serpent_ip proc input:dword, output:dword
   ret
 serpent_ip endp
 
-serpent_fp proc input:dword, output:dword
+serpent_fp proc stdcall input:dword, output:dword
+  local m:dword
+  local n:dword
+  
   pushad
   .repeat
     .repeat
@@ -55,113 +119,96 @@ serpent_fp proc input:dword, output:dword
   ret
 serpent_fp endp
 
-sbox128x proc box:dword, w:dword
+x0 equ <eax>
+x1 equ <ebx>
+x2 equ <ecx>
+x3 equ <edx>
+x4 equ <esi>
+
+; perform linear transformation
+serpent_lt proc stdcall x:dword, enc:dword
   pushad
-  popad
-  ret
-sbox128x endp
-
-X0 equ <eax>
-X1 equ <ebx>
-X2 equ <ecx>
-X3 equ <edx>
-
-load_lt proc
+  mov     esi, [x]
+  mov     edi, esi
   lodsd
-  xchg    eax, edx
+  xchg    eax, x3
   lodsd
-  xchg    eax, ebx
+  xchg    eax, x1
   lodsd
-  xchg    eax, ecx
+  xchg    eax, x2
   lodsd
-  xchg    eax, edx
-  ret
-load_lt endp
-
-save_lt proc
+  xchg    eax, x3
+  .if x==SERPENT_ENCRYPT
+    ; x0 = rotl32(x0, 13);
+    rol    x0, 13
+    ; x2 = rotl32(x2,  3);
+    rol    x2, 3
+    ; x1 ^= x0 ^ x2;
+    xor    x1, x0
+    xor    x1, x2
+    ; x3 ^= x2 ^ (x0 << 3);
+    mov    x4, x0
+    shl    x4, 3
+    xor    x3, x2
+    xor    x3, x4
+    ; x1 = rotl32(x1, 1);
+    rol    x1, 1
+    ; x3 = rotl32(x3, 7);
+    rol    x3, 7
+    ; x0 ^= x1 ^ x3;
+    xor    x0, x1
+    xor    x0, x3
+    ; x2 ^= x3 ^ (x1 << 7);
+    mov    x4, x1
+    shl    x4, 7
+    xor    x2, x3
+    xor    x2, x4
+    ; x0 = rotl32(x0, 5);
+    rol    x0, 5
+    ; x2 = rotr32(x2, 10);
+    ror    x2, 10
+  .else
+    ; x2 = rotl32(x2, 10);
+    rol    x2, 10
+    ; x0 = rotr32(x0, 5);
+    ror    x0, 5
+    ; x2 ^= x3 ^ (x1 << 7);
+    mov    x4, x1
+    shl    x4, 7
+    xor    x2, x3
+    xor    x2, x4
+    ; x0 ^= x1 ^ x3;
+    xor    x0, x1
+    xor    x0, x3
+    ; x3 = rotr32(x3, 7);
+    ror    x3, 7
+    ; x1 = rotr32(x1, 1);
+    ror    x1, 1
+    ; x3 ^= x2 ^ (x0 << 3);
+    mov    x4, x0
+    shl    x4, 3
+    xor    x3, x2
+    xor    x3, x4
+    ; x1 ^= x0 ^ x2;
+    xor    x1, x0
+    xor    x1, x2
+    ; x2 = rotr32(x2,  3);
+    ror    x2, 3
+    ; x0 = rotr32(x0, 13);
+    ror    x0, 13
+  .endif
   stosd
-  xchg   eax, ebx
+  xchg   eax, x1
   stosd
-  xchg   eax, ecx
+  xchg   eax, x2
   stosd
-  xchg   eax, edx
+  xchg   eax, x3
   stosd
-  ret
-save_lt endp
-
-serpent_lt proc b:dword
-  pushad
-  call   load_lt
-  ; X0 = rotl32(X0, 13);
-  rol    X0, 13
-  ; X2 = rotl32(X2,  3);
-  rol    X2, 3
-  ; X1 ^= X0 ^ X2;
-  xor    X1, X0
-  xor    X1, X2
-  ; X3 ^= X2 ^ (X0 << 3);
-  mov    X4, X0
-  shl    X4, 3
-  xor    X3, X2
-  xor    X3, X4
-  ; X1 = rotl32(X1, 1);
-  rol    X1, 1
-  ; X3 = rotl32(X3, 7);
-  rol    X3, 7
-  ; X0 ^= X1 ^ X3;
-  xor    X0, X1
-  xor    X0, X3
-  ; X2 ^= X3 ^ (X1 << 7);
-  mov    X4, X1
-  shl    X4, 7
-  xor    X2, X3
-  xor    X2, X4
-  ; X0 = rotl32(X0, 5);
-  rol    X0, 5
-  ; X2 = rotr32(X2, 10);
-  ror    X2, 10
-  call   save_lt
   popad
   ret
 serpent_lt endp
 
-serpent_inv_lt proc b:dword
-  pushad
-  call   load_lt
-	; X2 = rotl32(X2, 10);
-  rol    X2, 10
-	; X0 = rotr32(X0, 5);
-  ror    X0, 5
-	; X2 ^= X3 ^ (X1 << 7);
-  mov    X4, X1
-  shl    X4, 7
-  xor    X2, X3
-  xor    X2, X4
-	; X0 ^= X1 ^ X3;
-  xor    X0, X1
-  xor    X0, X3
-	; X3 = rotr32(X3, 7);
-  ror    X3, 7
-	; X1 = rotr32(X1, 1);
-  ror    X1, 1
-	; X3 ^= X2 ^ (X0 << 3);
-  mov    X4, X0
-  shl    X4, 3
-  xor    X3, X2
-  xor    X3, X4
-	; X1 ^= X0 ^ X2;
-  xor    X1, X0
-  xor    X1, X2
-	; X2 = rotr32(X2,  3);
-  ror    X2, 3
-	; X0 = rotr32(X0, 13);
-  ror    X0, 13
-  call   save_lt
-  popad
-  ret
-serpent_inv_lt endp
-
-GOLDEN_RATIO equ 09e3779b9lh
+GOLDEN_RATIO equ 09e3779b9h
 
 serpent_gen_w proc b:dword, i:dword
   ; ret = b[0] ^ b[3] ^ b[5] ^ b[7] ^ GOLDEN_RATIO ^ (uint32_t)i;
@@ -169,23 +216,131 @@ serpent_gen_w proc b:dword, i:dword
   xor    eax, [esi+4*3] ; b[3]
   xor    eax, [esi+4*7] ; b[7]
   xor    eax, GOLDEN_RATIO
-  xor    eax, [i]
+  xor    eax, dword ptr[i]
   ; ret = rotl32(ret, 11);
   rol    eax, 11
   ret
 serpent_gen_w endp
 
-serpent_enc proc
+sbox128 proc blk:dword, box_idx:dword, enc_type:dword
+  local sb[16]:byte
   local i:dword
+  
   pushad
-  .repeat
-    ; memxor(buffer, ctx->k[i], 16);
-    call  memxor
-    ; sbox128(buffer, i);
-    call  sbox128
-    ; serpent_lt((uint8_t*)buffer);
-    call  serpent_lt
-  .until [i]==32
+  lea    esi, [sbox]
+  jnc    mod_idx
+  lea    esi, [sbox_inv]
+mod_idx:
+  ; box_idx %= 8
+  mov    eax, [box_idx]
+  and    eax, 7
+  lea    esi, [esi+8*eax]
+  lea    edi, [sb]
+  
+  push   8
+  pop    ecx
+init_sbox:
+  lodsb
+  mov    ah, al
+  ; sb.v8[2*i+0] = HI_NIBBLE(t);
+  shr    al, 4
+  stosb
+  shr    eax, 12
+  ; sb.v8[2*i+1] = LO_NIBBLE(t);
+  stosb
+  loop   init_sbox
+  
+  ; serpent_ip (blk, &tmp_blk);
+  mov    esi, [blk]
+  ;lea    edi, [tmp_blk]
+  call   serpent_ip
+  
+  push   SERPENT_BLK_LEN
+  pop    ecx
+sbox_loop:
+  ; t = tmp_blk.v8[i]
+  lodsb
+  mov    ah, al
+  ; x = sb.v8[HI_NIBBLE(t)];
+  movzx  edx, byte ptr[ebx+eax]
+  or     bl, al
+  xchg   eax, ebx
+  stosb
+  ; x = sb.v8[t >> 4]
+  stosb
+  loop   sbox_loop
+  
+  ; serpent_fp (&tmp_blk, blk);
+  call   serpent_fp
+  popad
+  ret
+sbox128 endp
+
+keyspace union
+  v8 byte 32 dup (?)
+  v32 dword 8 dup (?)
+keyspace ends
+
+serpent_setkey proc key:dword, input:dword, inlen:dword
+  local ks:keyspace
+  
+  pushad
+  ; memset (&x, 0, sizeof (x));
+  lea    edi, [ks]
+  push   sizeof ks
+  pop    ecx
+  pushad
+  rep    stosb
+  popad
+  ; memcpy (x.v8, input, inlen > 32 ? 32 : inlen);
+  mov    eax, [inlen]
+  mov    esi, [input]
+  cmp    eax, ecx
+  cmovb  ecx, eax
+  rep    movsb
+  
+  ; x.v8[inlen] |= 1 << ((inlen*8) % 8);
+  cmovb  ecx, eax
+  shl    eax, cl
+  or     byte ptr[edi+ecx], 1
+  
+  ; for (i=0; i<=SERPENT_ROUNDS; i++) {
+  ;   sbox128 (&key->x[i], 3 - i, SERPENT_ENCRYPT);
+  ; }
+sbox_loop:
+  clc                ; SERPENT_ENCRYPT
+  call   sbox128
+  inc    ecx
+  cmp    ecx, SERPENT_ROUNDS
+  jbe    sbox_loop
+  popad
+  ret
+serpent_setkey endp
+
+serpent_enc proc
+  pushad
+  
+  ; blkcpy (out, in);
+  call   blkcpy
+enc_loop:
+  ; blkxor (out, &key->x[i]);
+  call   blkxor
+  ; sbox128 (out, i, SERPENT_ENCRYPT);
+  clc
+  call   sbox128
+  cmp    ecx, SERPENT_ROUNDS-1
+  jne    enc_lt
+  ; blkxor (out, &key->x[i+1]);
+  call   blkxor
+  jmp    enc_end
+enc_lt:
+  ; serpent_lt (out, SERPENT_ENCRYPT);
+  clc
+  call   serpent_lt
+enc_end:
+  inc    ecx
+  cmp    ecx, SERPENT_ROUNDS
+  jne    enc_loop
   popad
   ret
 serpent_enc endp
@@ -193,6 +348,22 @@ serpent_enc endp
 serpent_dec proc
   pushad
   
+  ; blkcpy (out, in);
+  call   blkcpy
+  
+dec_loop:
+  ; blkxor (out, &key->x[i+1]);
+  call   blkxor
+  ; serpent_lt (out, SERPENT_DECRYPT);
+  stc
+  call   serpent_lt
+  ; sbox128 (out, i, SERPENT_DECRYPT);
+  stc
+  call   sbox128
+  ; blkxor (out, &key->x[i]);
+  call   blkxor
+  add    esi, 16
+  loop   dec_loop
   popad
   ret
 serpent_dec endp

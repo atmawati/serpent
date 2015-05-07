@@ -59,6 +59,10 @@ int main (int argc, char *argv[])
   int klen, plen, clen, i;
   SERPENT_KEY serpent_key;
   
+  //print_sbox ();
+  
+  //return 0;
+  
   for (i=0; i<3; i++) {
     clen=hex2bin (ct1, cipher[i]);
     plen=hex2bin (pt1, plain[i]);

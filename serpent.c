@@ -135,6 +135,9 @@ void serpent_lt (serpent_blk* x, int type)
   x->v32[3]=x3;
 }
 
+#define HI_NIBBLE(b) (((b) >> 4) & 0x0F)
+#define LO_NIBBLE(b) ((b) & 0x0F)
+
 uint32_t serpent_gen_w (uint32_t *b, uint32_t i) {
   uint32_t ret;
   ret = b[0] ^ b[3] ^ b[5] ^ b[7] ^ GOLDEN_RATIO ^ i;
@@ -157,17 +160,17 @@ void sbox128 (serpent_blk *blk, uint8_t box_idx, int type)
   
   for (i=0; i<8; i++) {
     t = sbp[i];
-    sb.v8[2*i+0] = t >> 4;
-    sb.v8[2*i+1] = t & 0xf;
+    sb.v8[2*i+0] = HI_NIBBLE(t);
+    sb.v8[2*i+1] = LO_NIBBLE(t);
   }
   
   serpent_ip (blk, &tmp_blk);
   
   for (i=0; i<SERPENT_BLK_LEN; i++) {
     t = tmp_blk.v8[i];
-    x = sb.v8[t >> 4];
+    x = sb.v8[HI_NIBBLE(t)];
     x <<= 4;
-    x |= sb.v8[t & 0xf];
+    x |= sb.v8[LO_NIBBLE(t)];
     tmp_blk.v8[i] = x;
   }
   serpent_fp (&tmp_blk, blk);
@@ -183,7 +186,7 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
   uint8_t i, j;
   
   memset (&x, 0, sizeof (x));
-  memcpy (x.v8, input, inlen);
+  memcpy (x.v8, input, inlen > 32 ? 32 : inlen);
   
   // pad if less than 256-bits
   if (inlen < SERPENT_KEY256) {
