@@ -76,7 +76,7 @@ void serpent_ip (serpent_blk *in, serpent_blk *out)
 }
 
 #undef SHR_I
-#define SHR_I(a) ((a) = (cy ? 0x80000000L : 0x00L)| ((a) >> 1))
+#define SHR_I(a) ((a) = (cy ? 0x80000000L : 0x00L) | ((a) >> 1))
 
 void serpent_fp (serpent_blk *in, serpent_blk *out) 
 {
@@ -168,10 +168,7 @@ void sbox128 (serpent_blk *blk, uint8_t box_idx, int type)
   
   for (i=0; i<SERPENT_BLK_LEN; i++) {
     t = tmp_blk.v8[i];
-    x = sb.v8[HI_NIBBLE(t)];
-    x <<= 4;
-    x |= sb.v8[LO_NIBBLE(t)];
-    tmp_blk.v8[i] = x;
+    tmp_blk.v8[i] = (sb.v8[HI_NIBBLE(t)] << 4) | sb.v8[LO_NIBBLE(t)];
   }
   serpent_fp (&tmp_blk, blk);
 }
@@ -183,10 +180,20 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
     uint32_t v32[8];
   } x;
   
-  uint8_t i, j;
+  uint8_t i, j, k;
   
-  memset (&x, 0, sizeof (x));
-  memcpy (x.v8, input, inlen > 32 ? 32 : inlen);
+  for (i=0; i<sizeof(x); i++) {
+    x.v8[i]=0;
+  }
+  
+  j=inlen > SERPENT_KEY256 ? SERPENT_KEY256 : inlen;
+  
+  for (i=0; i<j; i++) {
+    x.v8[i] = ((uint8_t*)input)[i];
+  }
+  
+  //memset (&x, 0, sizeof (x));
+  //memcpy (x.v8, input, inlen > SERPENT_KEY256 ? SERPENT_KEY256 : inlen);
   
   // pad if less than 256-bits
   if (inlen < SERPENT_KEY256) {
@@ -198,7 +205,10 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
       key->x[i].v32[j] = serpent_gen_w (x.v32, i*4+j);
       
       // shift buffer one to the "left"
-      memmove (x.v32, &x.v32[1], 7*4);
+      for (k=0; k<7; k++) {
+        x.v32[k] = x.v32[k+1];
+      }
+      //memmove (x.v32, &x.v32[1], 7*4);
       x.v32[7] = key->x[i].v32[j];
     }
   }
@@ -223,7 +233,7 @@ void serpent_enc (SERPENT_KEY *key, void *pt, void *ct)
     sbox128 (out, i, SERPENT_ENCRYPT);
     // if last round, xor
     if (i==SERPENT_ROUNDS-1) {
-      blkxor (out, &key->x[i+1]);
+      blkxor (out, &key->x[SERPENT_ROUNDS]);
     } else {
       // else 
       serpent_lt (out, SERPENT_ENCRYPT);
@@ -240,16 +250,16 @@ void serpent_dec (SERPENT_KEY *key, void *ct, void *pt)
   // copy ciphertext to plaintext buffer
   blkcpy (out, in);
   
-  for (i=SERPENT_ROUNDS-1; i>=0; --i) {
-    if (i==SERPENT_ROUNDS-1) {
+  for (i=SERPENT_ROUNDS; i>0; --i) {
+    if (i==SERPENT_ROUNDS) {
       // xor with sub key
-      blkxor (out, &key->x[i+1]);
+      blkxor (out, &key->x[i]);
     } else {
       serpent_lt (out, SERPENT_DECRYPT);
     }
     // apply sbox
-    sbox128 (out, i, SERPENT_DECRYPT);
+    sbox128 (out, i-1, SERPENT_DECRYPT);
     // xor with subkey
-    blkxor (out, &key->x[i]);
+    blkxor (out, &key->x[i-1]);
   }
 }
