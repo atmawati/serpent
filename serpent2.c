@@ -46,17 +46,6 @@ uint8_t sbox[8][8] =
   { 0x1D, 0xF0, 0xE8, 0x2B, 0x74, 0xCA, 0x93, 0x56 }
 };
 
-uint8_t sbox_inv[8][8] =
-{ { 0xD3, 0xB0, 0xA6, 0x5C, 0x1E, 0x47, 0xF9, 0x82 },
-  { 0x58, 0x2E, 0xF6, 0xC3, 0xB4, 0x79, 0x1D, 0xA0 },
-  { 0xC9, 0xF4, 0xBE, 0x12, 0x03, 0x6D, 0x58, 0xA7 },
-  { 0x09, 0xA7, 0xBE, 0x6D, 0x35, 0xC2, 0x48, 0xF1 },
-  { 0x50, 0x83, 0xA9, 0x7E, 0x2C, 0xB6, 0x4F, 0xD1 },
-  { 0x8F, 0x29, 0x41, 0xDE, 0xB6, 0x53, 0x7C, 0xA0 },
-  { 0xFA, 0x1D, 0x53, 0x60, 0x49, 0xE7, 0x2C, 0x8B },
-  { 0x30, 0x6D, 0x9E, 0xF8, 0x5C, 0xB7, 0xA1, 0x42 }
-};
-
 #define SHR_O(a) cy=(a) & 1; ((a) = (a) >> 1)
 #define SHR_I(a) ((a) = (cy ? 0x80 : 0x00) | ((a) >> 1))
 
@@ -105,29 +94,16 @@ void serpent_lt (serpent_blk* x, int type)
   x2=x->v32[2];
   x3=x->v32[3];
   
-  if (type==SERPENT_ENCRYPT) {
-    x0 = ROL32(x0, 13);
-    x2 = ROL32(x2,  3);
-    x1 ^= x0 ^ x2;
-    x3 ^= x2 ^ (x0 << 3);
-    x1 = ROL32(x1, 1);
-    x3 = ROL32(x3, 7);
-    x0 ^= x1 ^ x3;
-    x2 ^= x3 ^ (x1 << 7);
-    x0 = ROL32(x0, 5);
-    x2 = ROR32(x2, 10);
-  } else {
-    x2 = ROL32(x2, 10);
-    x0 = ROR32(x0, 5);
-    x2 ^= x3 ^ (x1 << 7);
-    x0 ^= x1 ^ x3;
-    x3 = ROR32(x3, 7);
-    x1 = ROR32(x1, 1);
-    x3 ^= x2 ^ (x0 << 3);
-    x1 ^= x0 ^ x2;
-    x2 = ROR32(x2,  3);
-    x0 = ROR32(x0, 13);
-  }
+  x0 = ROL32(x0, 13);
+  x2 = ROL32(x2,  3);
+  x1 ^= x0 ^ x2;
+  x3 ^= x2 ^ (x0 << 3);
+  x1 = ROL32(x1, 1);
+  x3 = ROL32(x3, 7);
+  x0 ^= x1 ^ x3;
+  x2 ^= x3 ^ (x1 << 7);
+  x0 = ROL32(x0, 5);
+  x2 = ROR32(x2, 10);
   // save
   x->v32[0]=x0;
   x->v32[1]=x1;
@@ -152,11 +128,7 @@ void sbox128 (serpent_blk *blk, uint8_t box_idx, int type)
   
   box_idx &= 7;
   
-  if (type==SERPENT_ENCRYPT) {
-    sbp=(uint8_t*)&sbox[box_idx][0];
-  } else {
-    sbp=(uint8_t*)&sbox_inv[box_idx][0];
-  }
+  sbp=(uint8_t*)&sbox[box_idx][0];
   
   for (i=0; i<8; i++) {
     t = sbp[i];
@@ -241,28 +213,5 @@ void serpent_enc (SERPENT_KEY *key, void *pt, void *ct)
       // else 
       serpent_lt (out, SERPENT_ENCRYPT);
     }
-  }
-}
-
-void serpent_dec (SERPENT_KEY *key, void *ct, void *pt) 
-{
-  int8_t i;
-  serpent_blk *in=ct;
-  serpent_blk *out=pt;
-  
-  // copy ciphertext to plaintext buffer
-  blkcpy (out, in);
-  
-  for (i=SERPENT_ROUNDS; i>0; --i) {
-    if (i==SERPENT_ROUNDS) {
-      // xor with sub key
-      blkxor (out, &key->x[i]);
-    } else {
-      serpent_lt (out, SERPENT_DECRYPT);
-    }
-    // apply sbox
-    sbox128 (out, i-1, SERPENT_DECRYPT);
-    // xor with subkey
-    blkxor (out, &key->x[i-1]);
   }
 }
