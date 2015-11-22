@@ -45,8 +45,8 @@ extern "C" {
 #endif
 
   void serpent_setkey (SERPENT_KEY*, void*, uint32_t);
-  void serpent_enc (SERPENT_KEY*, void*, void*);
-  void serpent_dec (SERPENT_KEY*, void*, void*);
+  void serpent_enc (void*, void*, SERPENT_KEY*);
+  void serpent_dec (void*, void*, SERPENT_KEY*);
 
 #ifdef __cplusplus
 }

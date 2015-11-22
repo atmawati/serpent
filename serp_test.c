@@ -65,13 +65,13 @@ int main (int argc, char *argv[])
     klen=hex2bin (key, keys[i]);
   
     // set key 
-    serpent_setkey (&serpent_key, key, klen);
+    serpent_setkeyx (&serpent_key, key, klen);
     // encrypt
-    serpent_enc (&serpent_key, pt1, ct2);
+    serpent_enc (ct2, pt1, &serpent_key);
   
     if (memcmp (ct1, ct2, clen) == 0) {
       printf ("\n\nSelf-test for key length %i OK", klen);
-      serpent_dec (&serpent_key, ct2, pt2);
+      serpent_dec (pt2, ct2, &serpent_key);
       if (memcmp (pt1, pt2, plen) == 0) {
         printf ("\nDecryption okay for key length %i", klen);
       }

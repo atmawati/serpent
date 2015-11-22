@@ -66,7 +66,9 @@ void memxor(void *dest, const void *src, uint16_t n){
 static void serpent_ip(uint32_t *i, uint8_t *o){
 	uint8_t c; // carry 
 	uint8_t n,m;
-	memset(o, 0, 16);
+	
+  memset(o, 0, 16);
+  
 	for(n=0; n<16; ++n){
 		for(m=0; m<2; ++m){
 		SHR_O(i[0]);
