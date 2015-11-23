@@ -10,7 +10,7 @@
 #include "serpent.h"
 
 // xor dst blk by src
-void blkxorx (serpent_blk *dst, serpent_blk *src) {
+void blkxor (serpent_blk *dst, serpent_blk *src) {
   uint8_t i;
 
   for (i=0; i<SERPENT_BLK_LEN/4; i++) {
@@ -19,7 +19,7 @@ void blkxorx (serpent_blk *dst, serpent_blk *src) {
 }
 
 // copy src blk to dst
-void blkcpyx (serpent_blk *dst, serpent_blk *src) {
+void blkcpy (serpent_blk *dst, serpent_blk *src) {
   uint8_t i;
 
   for (i=0; i<SERPENT_BLK_LEN/4; i++) {
@@ -28,7 +28,7 @@ void blkcpyx (serpent_blk *dst, serpent_blk *src) {
 }
 
 // clear block
-void blkclrx (serpent_blk *blk) {
+void blkclr (serpent_blk *blk) {
   uint8_t i;
 
   for (i=0; i<SERPENT_BLK_LEN/4; i++) {
@@ -58,7 +58,8 @@ uint8_t sbox_inv[8][8] =
   { 0x30, 0x6D, 0x9E, 0xF8, 0x5C, 0xB7, 0xA1, 0x42 }
 };
 
-void serpent_ipx (serpent_blk *out, serpent_blk *in) 
+// initial permutation
+void serpent_ip (serpent_blk *out, serpent_blk *in) 
 {
   uint8_t cy;   // carry 
   uint8_t n, m;
@@ -74,7 +75,8 @@ void serpent_ipx (serpent_blk *out, serpent_blk *in)
   }
 }
 
-void serpent_fpx (serpent_blk *out, serpent_blk *in) 
+// final permutation
+void serpent_fp (serpent_blk *out, serpent_blk *in) 
 {
   uint8_t cy;   // carry 
   uint8_t n, m;
@@ -90,9 +92,47 @@ void serpent_fpx (serpent_blk *out, serpent_blk *in)
   }
 }
 
-/******************************************************************************/
-// performs linear transformation
-void serpent_ltx (serpent_blk* x, int type) 
+#define HI_NIBBLE(b) (((b) >> 4) & 0x0F)
+#define LO_NIBBLE(b) ((b) & 0x0F)
+
+uint32_t serpent_gen_w (uint32_t *b, uint32_t i) {
+  uint32_t ret;
+  ret = b[0] ^ b[3] ^ b[5] ^ b[7] ^ GOLDEN_RATIO ^ i;
+  return ROL32(ret, 11);
+} 
+
+// substitution box
+void sbox128 (serpent_blk *blk, uint32_t box_idx, int type) 
+{
+  serpent_blk tmp_blk, sb;
+  uint8_t *sbp;
+  uint8_t i, t;
+  
+  box_idx &= 7;
+  
+  if (type==SERPENT_ENCRYPT) {
+    sbp=(uint8_t*)&sbox[box_idx][0];
+  } else {
+    sbp=(uint8_t*)&sbox_inv[box_idx][0];
+  }
+  
+  for (i=0; i<16; i+=2) {
+    t = sbp[i/2];
+    sb.v8[i+0] = HI_NIBBLE(t);
+    sb.v8[i+1] = LO_NIBBLE(t);
+  }
+  
+  serpent_ip (&tmp_blk, blk);
+  
+  for (i=0; i<SERPENT_BLK_LEN; i++) {
+    t = tmp_blk.v8[i];
+    tmp_blk.v8[i] = (sb.v8[HI_NIBBLE(t)] << 4) | sb.v8[LO_NIBBLE(t)];
+  }
+  serpent_fp (blk, &tmp_blk);
+}
+
+// linear transformation
+void serpent_lt (serpent_blk* x, int type) 
 {
   uint32_t x0, x1, x2, x3;
   
@@ -132,44 +172,7 @@ void serpent_ltx (serpent_blk* x, int type)
   x->v32[3]=x3;
 }
 
-#define HI_NIBBLE(b) (((b) >> 4) & 0x0F)
-#define LO_NIBBLE(b) ((b) & 0x0F)
-
-uint32_t serpent_gen_wx (uint32_t *b, uint32_t i) {
-  uint32_t ret;
-  ret = b[0] ^ b[3] ^ b[5] ^ b[7] ^ GOLDEN_RATIO ^ i;
-  return ROL32(ret, 11);
-} 
-
-void sbox128x (serpent_blk *blk, uint8_t box_idx, int type) 
-{
-  serpent_blk tmp_blk, sb;
-  uint8_t *sbp;
-  uint8_t i, x, t;
-  
-  box_idx &= 7;
-  
-  if (type==SERPENT_ENCRYPT) {
-    sbp=(uint8_t*)&sbox[box_idx][0];
-  } else {
-    sbp=(uint8_t*)&sbox_inv[box_idx][0];
-  }
-  
-  for (i=0; i<16; i+=2) {
-    t = sbp[i/2];
-    sb.v8[i+0] = HI_NIBBLE(t);
-    sb.v8[i+1] = LO_NIBBLE(t);
-  }
-  
-  serpent_ip (&tmp_blk, blk);
-  
-  for (i=0; i<SERPENT_BLK_LEN; i++) {
-    t = tmp_blk.v8[i];
-    tmp_blk.v8[i] = (sb.v8[HI_NIBBLE(t)] << 4) | sb.v8[LO_NIBBLE(t)];
-  }
-  serpent_fp (blk, &tmp_blk);
-}
-
+// create serpent keys. 128-bit, 192-bit, 256-bit
 void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen) 
 {
   union {
@@ -177,7 +180,7 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
     uint32_t v32[8];
   } s_ws;
   
-  uint8_t i, j;
+  uint32_t i, j;
   
   for (i=0; i<sizeof(s_ws); i++) {
     s_ws.v8[i]=0;
@@ -193,8 +196,8 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
 
   for (i=0; i<=SERPENT_ROUNDS; i++) {
     for (j=0; j<4; j++) {
-      key->x[i].v32[j] = serpent_gen_wx (s_ws.v32, i*4+j);
-      __movsd (s_ws.v32, &s_ws.v32[1], 7);
+      key->x[i].v32[j] = serpent_gen_w (s_ws.v32, i*4+j);
+      memmove (&s_ws.v8, &s_ws.v8[4], 7*4);
       s_ws.v32[7] = key->x[i].v32[j];
     }
   }
@@ -203,7 +206,7 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
   }
 }
 
-void serpent_encx (void *ct, void *pt, SERPENT_KEY *key)
+void serpent_enc (void *ct, void *pt, SERPENT_KEY *key)
 {
   uint8_t i;
   serpent_blk *in=pt;
@@ -212,10 +215,9 @@ void serpent_encx (void *ct, void *pt, SERPENT_KEY *key)
   // copy plaintext to ciphertext buffer
   blkcpy (out, in);
   
-  for (i=0; i<=SERPENT_ROUNDS; i++) {
+  for (i=0; i<SERPENT_ROUNDS; i++) {
     // xor with subkey
     blkxor (out, &key->x[i]);
-    //if (i==SERPENT_ROUNDS) break;
     // apply sbox
     sbox128 (out, i, SERPENT_ENCRYPT);
     // if last round, xor
@@ -228,7 +230,7 @@ void serpent_encx (void *ct, void *pt, SERPENT_KEY *key)
   }
 }
 
-void serpent_decx (void *pt, void *ct, SERPENT_KEY *key) 
+void serpent_dec (void *pt, void *ct, SERPENT_KEY *key) 
 {
   int8_t i;
   serpent_blk *in=ct;

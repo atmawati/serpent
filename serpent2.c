@@ -192,7 +192,7 @@ void serpent_setkey (SERPENT_KEY *key, void *input, uint32_t inlen)
   }
 }
 
-void serpent_enc (SERPENT_KEY *key, void *pt, void *ct)
+void serpent_enc (void *ct, void *pt, SERPENT_KEY *key)
 {
   uint8_t i;
   serpent_blk *in=pt;
@@ -213,5 +213,28 @@ void serpent_enc (SERPENT_KEY *key, void *pt, void *ct)
       // else 
       serpent_lt (out, SERPENT_ENCRYPT);
     }
+  }
+}
+
+void serpent_dec (void *pt, void *ct, SERPENT_KEY *key) 
+{
+  int8_t i;
+  serpent_blk *in=ct;
+  serpent_blk *out=pt;
+  
+  // copy ciphertext to plaintext buffer
+  blkcpy (out, in);
+  
+  for (i=SERPENT_ROUNDS; i>0; --i) {
+    if (i==SERPENT_ROUNDS) {
+      // xor with sub key
+      blkxor (out, &key->x[i]);
+    } else {
+      serpent_lt (out, SERPENT_DECRYPT);
+    }
+    // apply sbox
+    sbox128 (out, i-1, SERPENT_DECRYPT);
+    // xor with subkey
+    blkxor (out, &key->x[i-1]);
   }
 }
