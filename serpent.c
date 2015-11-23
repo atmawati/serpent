@@ -141,7 +141,7 @@ uint32_t serpent_gen_wx (uint32_t *b, uint32_t i) {
   return ROL32(ret, 11);
 } 
 
-void sbox128 (serpent_blk *blk, uint8_t box_idx, int type) 
+void sbox128x (serpent_blk *blk, uint8_t box_idx, int type) 
 {
   serpent_blk tmp_blk, sb;
   uint8_t *sbp;
@@ -155,10 +155,10 @@ void sbox128 (serpent_blk *blk, uint8_t box_idx, int type)
     sbp=(uint8_t*)&sbox_inv[box_idx][0];
   }
   
-  for (i=0; i<8; i++) {
-    t = sbp[i];
-    sb.v8[2*i+0] = HI_NIBBLE(t);
-    sb.v8[2*i+1] = LO_NIBBLE(t);
+  for (i=0; i<16; i+=2) {
+    t = sbp[i/2];
+    sb.v8[i+0] = HI_NIBBLE(t);
+    sb.v8[i+1] = LO_NIBBLE(t);
   }
   
   serpent_ip (&tmp_blk, blk);

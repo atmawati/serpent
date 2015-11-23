@@ -1,9 +1,10 @@
 
 
+; -----------------------------------------------
 ; serpent in 32-bit x86 assembly
 ; odzhan
 ; derived from modified source of Daniel Otte
-;
+; -----------------------------------------------
 bits 32
 
 GOLDEN_RATIO    equ 0x9e3779b9
@@ -163,7 +164,7 @@ $@serpent_lt@8:
     lodsd
     xchg   x0, x3
     
-    jz    lt_dec
+    jz     lt_dec
     
     rol    x0, 13
     rol    x2, 3
@@ -216,7 +217,7 @@ lt_end:
    
 %ifndef BIN   
     global $@serpent_enc@12
-    extern $@sbox128@12
+    ;extern $@sbox128@12
 %endif    
 $@serpent_enc@12:
     pushad
@@ -227,11 +228,9 @@ s_el:
     mov    edx, esi     ; &key[i]
     call   $@blkxor@8
     
-    pushad
     push   SERPENT_ENCRYPT
     mov    edx, ebx        ; i
     call   $@sbox128@12
-    popad
     
     add    esi, 16         ; advance key
     
@@ -277,11 +276,9 @@ s_sbx:
     dec    ebx
     sub    esi, 16
     
-    pushad
     push   SERPENT_DECRYPT
     mov    edx, ebx        ; i
     call   $@sbox128@12
-    popad
     
     mov    edx, esi
     call   $@blkxor@8
@@ -316,13 +313,12 @@ $@serpent_setkeyx@12:
     cmovae ecx, ebx
     setae  al
     rep    movsb           ; move input to local buffer
-    
-    xchg   eax, ecx
+
+    dec    al
     mov    esi, esp        ; esi = s_ws
     mov    edi, ebp        ; edi = key
-    jecxz  skey_init
-    
-    or     byte [esi+ebx], al
+    jnz    skey_init
+    or     byte [esi+ebx], 1
 skey_init:
     xor    ebx, ebx        ; i=0
 skey_il:
@@ -382,10 +378,73 @@ skey_sbx:
     popad
     ret
     
+%ifndef BIN
+    global $@sbox128@12
+%endif
+; CF=0 : encryption
+; CF=1 : decryption
 $@sbox128@12:
     pushad
+    
+    ;int3
+    
+    mov    ebp, ecx   ; ebp = blk
+    lea    esi, [sbox]
+    lea    eax, [sbox_inv]
+    mov    ecx, [esp+32+4] ; type
+    dec    ecx
+    cmovz  esi, eax
+    and    edx, 7
+    lea    esi, [esi+8*edx]
+    sub    esp, 32
+    push   8
+    pop    ecx
+    mov    edi, esp   ; edi = sb
+sb_l1:
+    ; t = sbp[i/2];
+    lodsb
+    mov    dl, al
+    ; sb.v8[i+0] = HI_NIBBLE(t);
+    shr    al, 4
+    stosb
+    xchg   eax, edx
+    ; sb.v8[i+1] = LO_NIBBLE(t);
+    and    al, 15
+    stosb
+    loop   sb_l1
+    
+    mov    edx, ebp ; blk
+    mov    ecx, edi ; tmp_blk
+    call   @serpent_ip@8
+    
+    push   SERPENT_BLK_LEN
+    pop    ecx
+    mov    esi, edi      ; esi = tmp_blk
+    mov    ebx, esp      ; ebx = sb
+    push   esi
+sb_l2:
+    ; t = tmp_blk.v8[i];
+    lodsb
+    mov    dl, al
+    ; sb.v8[HI_NIBBLE(t)] << 4)
+    shr    al, 4
+    xlatb
+    shl    al, 4
+    ; sb.v8[LO_NIBBLE(t)]
+    xchg   eax, edx
+    and    al, 15
+    xlatb
+    or     al, dl
+    stosb
+    loop   sb_l2
+    
+    pop    edx               ; edx=tmp_blk
+    mov    ecx, ebp
+    call   @serpent_fp@8
+    
+    add    esp, 32
     popad
-    ret
+    ret    4
     
 sbox:
   db 038h, 0F1h, 0A6h, 05Bh, 0EDh, 042h, 070h, 09Ch
