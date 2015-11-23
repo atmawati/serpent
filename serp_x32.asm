@@ -310,14 +310,14 @@ $@serpent_setkeyx@12:
     popfd
     
     mov    edi, esp        ; copy key <= SERPENT_KEY256
-    cmovae ecx, ebx
-    setae  al
+    cmovae ecx, ebx        ; is ecx less than inlen?
+    setbe  al              ; set if ebx <=
     rep    movsb           ; move input to local buffer
 
     dec    al
     mov    esi, esp        ; esi = s_ws
     mov    edi, ebp        ; edi = key
-    jnz    skey_init
+    jz     skey_init
     or     byte [esi+ebx], 1
 skey_init:
     xor    ebx, ebx        ; i=0
