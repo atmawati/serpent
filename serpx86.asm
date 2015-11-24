@@ -145,12 +145,8 @@ s_el:
     add    esi, 16
     
     cmp    edx, SERPENT_ROUNDS-1
-    jne    s_elt
+    je    s_edi
     
-    ; blkxor (out, &key->x[SERPENT_ROUNDS]);
-    call   blkxor
-    jmp    s_edi
-s_elt:
     ; serpent_lt (out, SERPENT_ENCRYPT);
     stc                      ; CF=1 SERPENT_ENCRYPT
     call   serpent_lt
@@ -159,6 +155,8 @@ s_edi:
     cmp    edx, SERPENT_ROUNDS
     jne    s_el
     
+    call   blkxor
+        
     popad
     ret
 
@@ -178,7 +176,7 @@ _serpent_dec:
     rep    movsb
     popad
     shl    ecx, 1            ; *= 2 for default SERPENT_ROUNDS
-    mov    esi, ecx          ; esi = 16
+    mov    esi, ecx          ; esi = 32
     shl    esi, 4            ; esi = 32*16
     add    esi, [esp+32+12]  ; key
     
