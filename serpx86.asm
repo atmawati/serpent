@@ -30,10 +30,10 @@ SERPENT_ENCRYPT equ 0
 SERPENT_DECRYPT equ 1
 
 ; void blkxor (dst, src)
+; expects key in esi
 blkxor:
     pushad
     mov    edi, ecx
-    mov    esi, edx
     push   4
     pop    ecx
 blk_l:
@@ -227,7 +227,6 @@ _serpent_enc:
     call   blkcpy
     xor    ebx, ebx
 s_el:
-    mov    edx, esi          ; &key[i]
     call   blkxor
     
     stc                      ; CF=1 SERPENT_ENCRYPT
@@ -239,7 +238,6 @@ s_el:
     cmp    ebx, SERPENT_ROUNDS-1
     jne    s_elt
     
-    mov    edx, esi
     call   blkxor
     jmp    s_edi
 s_elt:
@@ -271,8 +269,7 @@ _serpent_dec:
 s_dl:
     cmp    ebx, SERPENT_ROUNDS
     jne    s_dlt
-    
-    mov    edx, esi
+
     call   blkxor
     jmp    s_sbx
 s_dlt:
@@ -286,7 +283,6 @@ s_sbx:
     mov    edx, ebx          ; i
     call   sbox128
     
-    mov    edx, esi
     call   blkxor
     
     test   ebx, ebx
