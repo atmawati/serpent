@@ -5,7 +5,14 @@
 ; odzhan
 ; derived from modified source of Daniel Otte
 ;
-; size: 746 bytes
+; size: 708 bytes
+;
+; big thanks to Peter Ferrie for suggestions which
+; shaved off 38 bytes.
+;
+; i've left old code commented for now so you can see
+; the improvements.
+;
 ; global calls are cdecl, internal functions use fastcall
 ; -----------------------------------------------
 bits 32
@@ -73,12 +80,16 @@ ip_n_l:
 ip_m_l:
     mov    eax, edx
     and    eax, 3
-    mov    ebx, [esi+4*eax]
+    ;mov ebx, [esi+4*eax]
+    ;shr dword[esi+4*eax], 1
+    ;and ebx, 1
+    ;shl ebx, 7
+    ;shr byte[edi+ecx], 1
+    ;or byte[edi+ecx], bl
+    
+    ; Peter Ferrie suggested this
     shr    dword[esi+4*eax], 1
-    and    ebx, 1
-    shl    ebx, 7
-    shr    byte[edi+ecx], 1
-    or     byte[edi+ecx], bl
+    rcr    byte[edi+ecx], 1
     
     inc    edx
     cmp    edx, 8
@@ -101,14 +112,18 @@ serpent_fp:
 fp_n_l:
     xor    edx, edx ; m=0
 fp_m_l:
-    mov    ebx, [esi+4*ecx]
-    shr    dword[esi+4*ecx], 1
-    and    ebx, 1
-    shl    ebx, 31
+    ;mov    ebx, [esi+4*ecx]
+    ;shr    dword[esi+4*ecx], 1
+    ;and    ebx, 1
+    ;shl    ebx, 31
     mov    eax, edx
     and    eax, 3
-    shr    dword[edi+4*eax], 1
-    or     dword[edi+4*eax], ebx
+    ;shr    dword[edi+4*eax], 1
+    ;or     dword[edi+4*eax], ebx
+ 
+    ; Peter Ferrie suggested using this
+    shr    dword[esi+4*ecx], 1
+    rcr    dword[edi+4*eax], 1
     
     inc    edx
     cmp    edx, 32
@@ -119,6 +134,7 @@ fp_m_l:
     jne    fp_n_l
     popad
     ret
+    
       
 ; void serpent_fp (out, in);
 
@@ -147,7 +163,7 @@ serpent_lt:
     lodsd
     xchg   x0, x3
     
-    jc     lt_dec
+    jnc    lt_dec   ; if CF=0 do decryption
     
     rol    x0, 13
     rol    x2, 3
@@ -214,7 +230,7 @@ s_el:
     mov    edx, esi          ; &key[i]
     call   blkxor
     
-    clc                      ; CF=0 SERPENT_ENCRYPT
+    stc                      ; CF=1 SERPENT_ENCRYPT
     mov    edx, ebx          ; edx = i
     call   sbox128
     
@@ -227,7 +243,7 @@ s_el:
     call   blkxor
     jmp    s_edi
 s_elt:
-    clc                      ; CF=0 SERPENT_ENCRYPT
+    stc                      ; CF=1 SERPENT_ENCRYPT
     call   serpent_lt
 s_edi:
     inc    ebx
@@ -260,13 +276,13 @@ s_dl:
     call   blkxor
     jmp    s_sbx
 s_dlt:
-    stc                      ; CF=1 SERPENT_DECRYPT
+    clc                      ; CF=0 SERPENT_DECRYPT
     call   serpent_lt    
 s_sbx:
     dec    ebx               ; --i
     sub    esi, 16           ; decrease key position
     
-    stc                      ; CF=1 SERPENT_DECRYPT
+    clc                      ; CF=0 SERPENT_DECRYPT
     mov    edx, ebx          ; i
     call   sbox128
     
@@ -297,20 +313,16 @@ _serpent_setkey:
     mov    edi, esp          ; set local to zero
     xor    eax, eax
     cmp    ecx, ebx
-    pushfd
     rep    stosb
-    popfd
     
     mov    edi, esp        ; copy key <= SERPENT_KEY256
     cmovae ecx, ebx        ; is ecx less than inlen?
-    setbe  al              ; set if ebx <=
+    setae  al
     rep    movsb           ; move input to local buffer
 
-    dec    al
     mov    esi, esp        ; esi = s_ws
     mov    edi, ebp        ; edi = key
-    jz     skey_init
-    or     byte [esi+ebx], 1
+    or     byte [esi+ebx], al ; potential bug if ebx exceeds 256-bits
 skey_init:
     xor    ebx, ebx        ; i=0
 skey_il:
@@ -355,7 +367,7 @@ skey_sbx:
     neg    edx               ; 
     add    edx, 3            ; i - 3
     mov    ecx, ebp          ; ecx = key
-    clc                      ; clear carry flag
+    stc                      ; set carry flag for encryption
     call   sbox128
     add    ebp, 16           ; advance key 1
     inc    ebx
@@ -365,14 +377,14 @@ skey_sbx:
     popad
     ret
     
-; CF=0 : encryption
-; CF=1 : decryption
+; CF=1 : encryption
+; CF=0 : decryption
 sbox128:
     pushad
     mov    ebp, ecx          ; ebp = blk
     lea    esi, [sbox]
     lea    eax, [sbox_inv]
-    cmovc  esi, eax
+    cmovnc esi, eax
     and    edx, 7
     lea    esi, [esi+8*edx]
     sub    esp, 32
@@ -381,12 +393,19 @@ sbox128:
     mov    edi, esp          ; edi = sb
 sb_l1:
     lodsb                    ; t = sbp[i/2];
-    mov    dl, al            ; sb.v8[i+0] = HI_NIBBLE(t);
-    shr    al, 4
+    ;mov    dl, al            ; sb.v8[i+0] = HI_NIBBLE(t);
+    ;shr    al, 4
+    ;stosb
+    ;xchg   eax, edx
+    ;and    al, 15            ; sb.v8[i+1] = LO_NIBBLE(t);
+    ;stosb
+    ; Peter Ferrie suggested the following replacement
+    aam    16
+    xchg   ah, al
     stosb
-    xchg   eax, edx
-    and    al, 15            ; sb.v8[i+1] = LO_NIBBLE(t);
+    xchg   ah, al
     stosb
+    ; -----------
     loop   sb_l1
     
     mov    edx, ebp          ; blk
@@ -397,21 +416,26 @@ sb_l1:
     pop    ecx
     mov    esi, edi          ; esi = tmp_blk
     mov    ebx, esp          ; ebx = sb
-    push   esi
+    mov    edx, esi
+    ;push   esi
 sb_l2:
     lodsb                    ; t = tmp_blk.v8[i];
-    mov    dl, al
-    shr    al, 4             ; sb.v8[HI_NIBBLE(t)] << 4)
+    aam    16
+    ;mov    dl, al
+    ;shr    al, 4             ; sb.v8[HI_NIBBLE(t)] << 4)
+    xchg   ah, al
     xlatb
-    shl    al, 4
-    xchg   eax, edx
-    and    al, 15            ; sb.v8[LO_NIBBLE(t)]
+    ;shl    al, 4
+    ;xchg   eax, edx
+    ;and    al, 15            ; sb.v8[LO_NIBBLE(t)]
+    xchg   ah, al
     xlatb
-    or     al, dl
+    ;or     al, dl
+    aad    16 
     stosb
     loop   sb_l2
     
-    pop    edx               ; edx=tmp_blk
+    ;pop    edx               ; edx=tmp_blk
     mov    ecx, ebp
     call   serpent_fp
     
