@@ -5,7 +5,7 @@
 ; odzhan
 ; derived from modified source of Daniel Otte
 ;
-; size: 646 bytes
+; size: 652 bytes
 ;
 ; big thanks to Peter Ferrie for suggestions and inspiration
 ;
@@ -223,7 +223,6 @@ _serpent_setkey:
     ; for (i=0; i<32; i++) {
     ;   s_ws.v8[i]=0;
     ; }
-    mov    ebx, 3123
     mov    edi, esp          ; set local to zero
     xor    eax, eax
     cmp    ebx, ecx          ; key_len = (key_len > SERPENT_KEY256) ? SERPENT_KEY256 : key_len
