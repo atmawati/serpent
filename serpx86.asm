@@ -7,7 +7,7 @@
 ;
 ; size: 646 bytes
 ;
-; big thanks to Peter Ferrie for suggestions
+; big thanks to Peter Ferrie for suggestions and inspiration
 ;
 ; global calls are cdecl, internal functions use fastcall
 ;
