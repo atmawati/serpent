@@ -9,7 +9,7 @@
 ;
 ; big thanks to Peter Ferrie for suggestions and inspiration
 ;
-; global calls are cdecl, internal functions use fastcall
+; global calls are cdecl
 ;
 ; -----------------------------------------------
 bits 32
