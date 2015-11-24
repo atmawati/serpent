@@ -223,21 +223,26 @@ _serpent_setkey:
     ; for (i=0; i<32; i++) {
     ;   s_ws.v8[i]=0;
     ; }
+    mov    ebx, 3123
     mov    edi, esp          ; set local to zero
     xor    eax, eax
-    cmp    ecx, ebx
+    cmp    ebx, ecx          ; key_len = (key_len > SERPENT_KEY256) ? SERPENT_KEY256 : key_len
+    cmova  ebx, ecx          
     rep    stosb
+    setb   al
     
     ; i=key_len > SERPENT_KEY256 ? SERPENT_KEY256 : key_len;
     ; memcpy (&s_ws.v8[0], key, i);
     mov    edi, esp           ; copy key <= SERPENT_KEY256
-    cmovae ecx, ebx           ; is ecx less than key_len?
-    setae  al
+    mov    ecx, ebx
     rep    movsb              ; move key into workspace
-
+    
     mov    esi, esp           ; esi = workspace
     mov    edi, ebp           ; edi = ctx
-    or     byte [esi+ebx], al ; potential bug if ebx exceeds 256-bits
+    test   eax, eax
+    jz     skey_il            ; skip padding
+    
+    or     byte [esi+ebx], al
 skey_il:
     xor    edx, edx           ; j=0
 skey_jl:
