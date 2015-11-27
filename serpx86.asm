@@ -28,11 +28,6 @@ SERPENT_DECRYPT equ 1
 %ifndef BIN
     global _serpent_setkeyx
     global _serpent_encryptx
-    
-    global _sbox128x
-    global _serpent_ltx
-    
-    global _serpent_permx
 %endif
 
 ; void blkxor (dst, src)
