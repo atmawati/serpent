@@ -74,7 +74,7 @@ int main (void)
     
     serpent_setkey (&skey, key);
     printf ("\nkey=");
-    
+
     for (j=0; j<sizeof(skey)/sizeof(serpent_subkey_t)*4; j++) {
       if ((j % 8)==0) putchar('\n');
       printf ("%08X ", p[j]);

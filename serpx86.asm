@@ -309,9 +309,6 @@ fp_m_l:
 _sbox128x:
 sbox128:
     pushad
-    ;mov    edx, [esp+32+4] ; blk
-    ;mov    ebp, [esp+32+8] ; i
-    ;mov    ecx, [esp+32+12] ; enc type
     mov    edx, edi
     jmp    load_sbox
 init_sbox:
@@ -334,7 +331,7 @@ sb_l1:
     stosw
     loop   sb_l1
     
-    ; serpent_permx (&tmp_blk, blk, SERPENT_IP);
+    ; serpent_perm (&tmp_blk, blk, SERPENT_IP);
     mov    esi, edx
     stc
     call   serpent_perm
@@ -354,7 +351,7 @@ sb_l2:
     
     pop    esi
     mov    edi, edx
-    ; serpent_permx (blk, &tmp_blk, SERPENT_FP);
+    ; serpent_perm (blk, &tmp_blk, SERPENT_FP);
     clc
     call   serpent_perm
     add    esp, 32
