@@ -20,15 +20,19 @@
 #define SERPENT_IP       0
 #define SERPENT_FP       1
 
+#pragma pack(push, 1)
 typedef union _serpent_blk_t {
   uint8_t v8[SERPENT_BLK_LEN];
   uint32_t v32[SERPENT_BLK_LEN/4];
   uint64_t v64[SERPENT_BLK_LEN/2];
 } serpent_blk;
+#pragma pack(pop)
+
+typedef uint32_t serpent_subkey_t[4];
 
 #pragma pack(push, 1)
 typedef struct serpent_key_t {
-  serpent_blk x[SERPENT_ROUNDS+1];
+  serpent_subkey_t x[SERPENT_ROUNDS+1];
 } serpent_key;
 #pragma pack(pop)
 

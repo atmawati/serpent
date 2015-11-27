@@ -33,8 +33,6 @@ SERPENT_DECRYPT equ 1
     global _serpent_ltx
     
     global _serpent_permx
-    global _serpent_permx
-    
 %endif
 
 fmt db "%08X ", 0

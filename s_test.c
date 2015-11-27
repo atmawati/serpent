@@ -59,6 +59,7 @@ int main (void)
   int klen, plen, clen, i, j;
   serpent_key skey;
   serpent_blk ct2;
+  uint32_t *p;
   
   printf ("\nserpent-256 test\n");
   
@@ -69,11 +70,15 @@ int main (void)
   
     // set key
     memset (&skey, 0, sizeof (skey));
-    serpent_setkeyx (&skey, key);
+    p=(uint32_t*)&skey.x[0][0];
+    
+    serpent_setkey (&skey, key);
     printf ("\nkey=");
     
-    for (j=0; j<32; j++) 
-      printf ("%08X ", skey.x[j].v32[0]);
+    for (j=0; j<sizeof(skey)/sizeof(serpent_subkey_t)*4; j++) {
+      if ((j % 8)==0) putchar('\n');
+      printf ("%08X ", p[j]);
+    }
     
     // encrypt
     memcpy (ct2.v8, pt1, SERPENT_BLK_LEN);
