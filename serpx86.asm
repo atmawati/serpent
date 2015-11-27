@@ -35,7 +35,6 @@ SERPENT_DECRYPT equ 1
     global _serpent_permx
 %endif
 
-fmt db "%08X ", 0
 ; void blkxor (dst, src)
 ; expects src in esi, dst in edi
 blkxor:
