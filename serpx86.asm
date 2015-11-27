@@ -147,13 +147,13 @@ serpent_encrypt:
     push   SERPENT_ROUNDS
     pop    ebp
 d_init:
-    ; blkxor (out, &key->x[i]);
+    ; blkxor (out, key, i);
     call   blkxor
 sd_l:
     dec    ebp               ; --i
-    ; sbox128 (out, i-1, SERPENT_DECRYPT);
+    ; sbox128 (out, i, SERPENT_DECRYPT);
     call   sbox128
-    ; blkxor (out, &key->x[i-1]);
+    ; blkxor (out, key, i);
     call   blkxor
     test   ebp, ebp
     jz     end_dec
@@ -167,7 +167,7 @@ end_dec:
 encrypt:
     xor    ebp, ebp          ; i=0
 se_l:
-    ; blkxor (out, &key->x[i]);
+    ; blkxor (out, key, i);
     call   blkxor
     ; sbox128 (out, i, SERPENT_ENCRYPT);
     call   sbox128
