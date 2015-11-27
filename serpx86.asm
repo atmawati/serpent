@@ -9,7 +9,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 587 bytes
+; size: 581 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -30,12 +30,26 @@ SERPENT_DECRYPT equ 1
     global _serpent_encryptx
 %endif
 
+struc pushad_t
+  _edi dd ?
+  _esi dd ?
+  _ebp dd ?
+  _esp dd ?
+  _ebx dd ?
+  _edx dd ?
+  _ecx dd ?
+  _eax dd ?
+  .size:
+endstruc
+
 ; void blkxor (dst, src)
 ; expects src in esi, dst in edi
 blkxor:
     pushad
     push   4
     pop    ecx
+    shl    ebp, 4
+    add    esi, ebp
 blk_l:
     lodsd
     xor    eax, [edi]
@@ -128,9 +142,6 @@ serpent_encrypt:
     mov    edi, [esp+32+ 4]  ; out
     mov    esi, [esp+32+ 8]  ; key
     mov    ecx, [esp+32+12]  ; enc
-    
-    shl    ecx, 9            ; *= 512
-    add    esi, ecx
     jecxz  encrypt
     
     push   SERPENT_ROUNDS
@@ -138,22 +149,18 @@ serpent_encrypt:
 d_init:
     ; blkxor (out, &key->x[i]);
     call   blkxor
-    jmp    s_sbx
-s_dlt:
-    ; serpent_lt (out, SERPENT_DECRYPT);
-    call   serpent_lt    
-s_sbx:
+sd_l:
     dec    ebp               ; --i
-    sub    esi, 16
     ; sbox128 (out, i-1, SERPENT_DECRYPT);
     call   sbox128
-    
-xit_serp:
     ; blkxor (out, &key->x[i-1]);
     call   blkxor
-    
     test   ebp, ebp
-    jnz    s_dlt 
+    jz     end_dec
+    ; serpent_lt (out, SERPENT_DECRYPT);
+    call   serpent_lt
+    jmp    sd_l
+end_dec:
     popad
     ret
     
@@ -164,20 +171,16 @@ se_l:
     call   blkxor
     ; sbox128 (out, i, SERPENT_ENCRYPT);
     call   sbox128
-    
-    cmp    ebp, SERPENT_ROUNDS-1
-    je     s_edi
-    
-    ; serpent_lt (out, SERPENT_ENCRYPT);
-    call   serpent_lt
-s_edi:
-    add    esi, 16
-    
     inc    ebp
     cmp    ebp, SERPENT_ROUNDS
-    jne    se_l
-    xor    ebp, ebp
-    jmp    xit_serp
+    je     end_enc
+    ; serpent_lt (out, SERPENT_ENCRYPT);
+    call   serpent_lt
+    jmp    se_l
+end_enc:
+    call   blkxor
+    popad
+    ret
 
 _serpent_setkeyx:  
 serpent_setkey:  
