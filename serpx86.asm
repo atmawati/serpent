@@ -258,14 +258,12 @@ skey_loop_j:
 _serpent_permx:
 serpent_perm:
     pushad
-    pushfd
-    xor    eax, eax
+    xchg   eax, ecx    ; ecx should be zero
     push   16
     pop    ecx
     pushad
     rep    stosb
     popad
-    popfd
     jnc    do_fp
     ; initial permutation
 ip_n_l:

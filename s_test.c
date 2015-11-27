@@ -72,7 +72,7 @@ int main (void)
     memset (&skey, 0, sizeof (skey));
     p=(uint32_t*)&skey.x[0][0];
     
-    serpent_setkey (&skey, key);
+    serpent_setkeyx (&skey, key);
     printf ("\nkey=");
 
     for (j=0; j<sizeof(skey)/sizeof(serpent_subkey_t)*4; j++) {
