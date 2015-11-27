@@ -1,6 +1,6 @@
 
 
-// SERPENT in C
+// test unit for serpent-256
 // Odzhan
 
 #include <stdio.h>
@@ -12,22 +12,14 @@
 #include "serpent.h"
 
 char *plain[]=
-{ "00000000000000000000000000000000",
-  "4528CACCB954D450655E8CFD71CBFAC7",
-  "3DA46FFA6F4D6F30CD258333E5A61369"
-};
+{ "3DA46FFA6F4D6F30CD258333E5A61369" };
 
 char *keys[]=
-{ "80000000000000000000000000000000",
-  "000102030405060708090A0B0C0D0E0F1011121314151617",
-  "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F" 
+{"000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F" 
 };
 
 char *cipher[]=
-{ "264E5481EFF42A4606ABDA06C0BFDA3D",
-  "00112233445566778899AABBCCDDEEFF",
-  "00112233445566778899AABBCCDDEEFF"  
-};
+{ "00112233445566778899AABBCCDDEEFF"};
 
 size_t hex2bin (void *bin, char hex[]) {
   size_t len, i;
@@ -53,33 +45,57 @@ size_t hex2bin (void *bin, char hex[]) {
   return len / 2;
 } 
 
+void dump_hex (char *s, uint8_t bin[], int len)
+{
+  int i;
+  printf ("\n%s=", s);
+  for (i=0; i<len; i++) {
+    printf ("%02x", bin[i]);
+  }
+}
 int main (void)
 {
-  uint8_t ct1[32], ct2[32], pt1[32], pt2[32], key[64];
+  uint8_t ct1[32], pt1[32], pt2[32], key[64];
   int klen, plen, clen, i, j;
-  SERPENT_KEY serpent_key;
+  serpent_key skey;
+  serpent_blk ct2;
   
-  for (i=0; i<3; i++) {
+  printf ("\nserpent-256 test\n");
+  
+  for (i=0; i<sizeof(keys)/sizeof(char*); i++) {
     clen=hex2bin (ct1, cipher[i]);
     plen=hex2bin (pt1, plain[i]);
     klen=hex2bin (key, keys[i]);
   
-    // set key 
-    serpent_setkey (&serpent_key, key, klen);
+    // set key
+    memset (&skey, 0, sizeof (skey));
+    serpent_setkeyx (&skey, key);
     printf ("\nkey=");
-    for (j=0; j<32; j++) printf ("%08X", serpent_key.x[j].v32[0]);
+    
+    for (j=0; j<32; j++) 
+      printf ("%08X ", skey.x[j].v32[0]);
     
     // encrypt
-    serpent_enc (ct2, pt1, &serpent_key);
+    memcpy (ct2.v8, pt1, SERPENT_BLK_LEN);
+    
+    printf ("\n\n");
+    dump_hex ("plaintext", ct2.v8, 16);
+    
+    serpent_encryptx (ct2.v8, &skey, SERPENT_ENCRYPT);
   
-    if (memcmp (ct1, ct2, clen) == 0) {
-      printf ("\n\nSelf-test for key length %i OK", klen);
-      serpent_dec (pt2, ct2, &serpent_key);
-      if (memcmp (pt1, pt2, plen) == 0) {
-        printf ("\nDecryption okay for key length %i", klen);
+    dump_hex ("ciphertext", ct2.v8, 16);
+    
+    if (memcmp (ct1, ct2.v8, clen) == 0) {
+      printf ("\nEncryption OK");
+      serpent_encryptx (ct2.v8, &skey, SERPENT_DECRYPT);
+      if (memcmp (pt1, ct2.v8, plen) == 0) {
+        printf ("\nDecryption OK");
+        dump_hex ("plaintext", ct2.v8, 16);
+      } else {
+        printf ("\nDecryption failed");
       }
     } else {
-      printf ("\nSelf-test for key length %i failed\n", klen);
+      printf ("\nEncryption failed");
     }
   }
   return 0;

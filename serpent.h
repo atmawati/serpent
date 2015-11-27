@@ -12,23 +12,25 @@
 
 #define SERPENT_ROUNDS  32
 #define SERPENT_BLK_LEN 16
-
-#define SERPENT_KEY128  16
-#define SERPENT_KEY192  24
 #define SERPENT_KEY256  32
 
 #define SERPENT_ENCRYPT  0
 #define SERPENT_DECRYPT  1
 
+#define SERPENT_IP       0
+#define SERPENT_FP       1
+
 typedef union _serpent_blk_t {
   uint8_t v8[SERPENT_BLK_LEN];
   uint32_t v32[SERPENT_BLK_LEN/4];
-  uint64_t v64;
+  uint64_t v64[SERPENT_BLK_LEN/2];
 } serpent_blk;
 
+#pragma pack(push, 1)
 typedef struct serpent_key_t {
   serpent_blk x[SERPENT_ROUNDS+1];
-} SERPENT_KEY;
+} serpent_key;
+#pragma pack(pop)
 
 #define ROL32(a, n)(((a) << (n)) | (((a) & 0xffffffff) >> (32 - (n))))
 #define ROR32(a, n)((((a) & 0xffffffff) >> (n)) | ((a) << (32 - (n))))
@@ -44,9 +46,10 @@ typedef struct serpent_key_t {
 extern "C" {
 #endif
 
-  void serpent_setkey (SERPENT_KEY*, void*, uint32_t);
-  void serpent_enc (void*, void*, SERPENT_KEY*);
-  void serpent_dec (void*, void*, SERPENT_KEY*);
+  void serpent_setkey (serpent_key*, void*);
+  void serpent_setkeyx (serpent_key*, void*);
+  void serpent_encrypt (void*, serpent_key*, int);
+  void serpent_encryptx (void*, serpent_key*, int);
 
 #ifdef __cplusplus
 }
