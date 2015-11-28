@@ -1,6 +1,6 @@
 
 
-// SERPENT in C
+// SERPENT-256 in C
 // Odzhan
 
 #ifndef SERPENT_H
@@ -39,10 +39,13 @@ typedef struct serpent_key_t {
 extern "C" {
 #endif
 
-  void serpent_setkey (serpent_key*, void*);
-  void serpent_setkeyx (serpent_key*, void*);
-  void serpent_encrypt (void*, serpent_key*, int);
+  // x86 asm
+  void serpent_setkeyx (serpent_key*, void*);  
   void serpent_encryptx (void*, serpent_key*, int);
+  
+  // C code
+  void serpent_setkey (serpent_key*, void*);  
+  void serpent_encrypt (void*, serpent_key*, int);
 
 #ifdef __cplusplus
 }

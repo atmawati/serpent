@@ -9,7 +9,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 581 bytes
+; size: 580 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -48,7 +48,7 @@ blkxor:
     pushad
     push   4
     pop    ecx
-    shl    ebp, 4
+    shl    ebp, cl
     add    esi, ebp
 blk_l:
     lodsd
