@@ -9,7 +9,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 580 bytes
+; size: 574 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -41,24 +41,6 @@ struc pushad_t
   _eax dd ?
   .size:
 endstruc
-
-; void blkxor (dst, src)
-; expects src in esi, dst in edi
-blkxor:
-    pushad
-    push   4
-    pop    ecx
-    shl    ebp, cl
-    add    esi, ebp
-blk_l:
-    lodsd
-    xor    eax, [edi]
-    stosd
-    loop   blk_l
-    popad
-    ret
-      
-; void serpent_perm (out, in);
 
 %define x0 eax
 %define x1 ebx
@@ -142,18 +124,33 @@ serpent_encrypt:
     mov    edi, [esp+32+ 4]  ; out
     mov    esi, [esp+32+ 8]  ; key
     mov    ecx, [esp+32+12]  ; enc
+    call   load_bxor
+    pushad
+    push   4
+    pop    ecx
+    shl    ebp, cl
+    add    esi, ebp
+blk_l:
+    lodsd
+    xor    eax, [edi]
+    stosd
+    loop   blk_l
+    popad
+    ret
+load_bxor:
+    pop    edx
     jecxz  encrypt
     
     push   SERPENT_ROUNDS
     pop    ebp
     ; blkxor (out, key, i);
-    call   blkxor
+    call   edx ; blkxor
 sd_l:
     dec    ebp               ; --i
     ; sbox128 (out, i, SERPENT_DECRYPT);
     call   sbox128
     ; blkxor (out, key, i);
-    call   blkxor
+    call   edx ; blkxor
     test   ebp, ebp
     jz     end_dec
     ; serpent_lt (out, SERPENT_DECRYPT);
@@ -167,7 +164,7 @@ encrypt:
     xor    ebp, ebp          ; i=0
 se_l:
     ; blkxor (out, key, i);
-    call   blkxor
+    call   edx ; blkxor
     ; sbox128 (out, i, SERPENT_ENCRYPT);
     call   sbox128
     inc    ebp
@@ -177,7 +174,7 @@ se_l:
     call   serpent_lt
     jmp    se_l
 end_enc:
-    call   blkxor
+    call   edx ; blkxor
     popad
     ret
 
