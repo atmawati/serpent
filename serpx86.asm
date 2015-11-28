@@ -9,7 +9,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 580 bytes
+; size: 581 bytes
 ;
 ; global calls use cdecl convention
 ;
