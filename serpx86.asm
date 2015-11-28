@@ -146,7 +146,6 @@ serpent_encrypt:
     
     push   SERPENT_ROUNDS
     pop    ebp
-d_init:
     ; blkxor (out, key, i);
     call   blkxor
 sd_l:
