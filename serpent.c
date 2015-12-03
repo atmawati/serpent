@@ -1,8 +1,29 @@
+/* serpent.c */
+/*
+    This file is part of the AVR-Crypto-Lib.
+    Copyright (C) 2008  Daniel Otte (daniel.otte@rub.de)
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-// SERPENT-256 in C
-// Odzhan
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/* serpent.c
+ * a bitsliced implementation of the serpent cipher for avr microcontrollers
+ * author: Daniel Otte 
+ * email:  daniel.otte@rub.de
+ * license: GPLv3
+ */
+ 
+// minor changes made by Odzhan to make it more compact
 
 #include <stdint.h>
 #include <string.h>
@@ -213,3 +234,4 @@ void serpent_encrypt (void *in, serpent_key *key, int enc)
     blkxor (out, key, i);
   }
 }
+

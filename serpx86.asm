@@ -1,4 +1,30 @@
-
+;  Copyright © 2015 Odzhan, Peter Ferrie. All Rights Reserved.
+;
+;  Redistribution and use in source and binary forms, with or without
+;  modification, are permitted provided that the following conditions are
+;  met:
+;
+;  1. Redistributions of source code must retain the above copyright
+;  notice, this list of conditions and the following disclaimer.
+;
+;  2. Redistributions in binary form must reproduce the above copyright
+;  notice, this list of conditions and the following disclaimer in the
+;  documentation and/or other materials provided with the distribution.
+;
+;  3. The name of the author may not be used to endorse or promote products
+;  derived from this software without specific prior written permission.
+;
+;  THIS SOFTWARE IS PROVIDED BY AUTHORS "AS IS" AND ANY EXPRESS OR
+;  IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+;  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+;  DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+;  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+;  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+;  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+;  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+;  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+;  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+;  POSSIBILITY OF SUCH DAMAGE.
 
 ; -----------------------------------------------
 ; serpent-256 block cipher in x86 assembly
@@ -8,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 557 bytes
+; size: 556 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -138,86 +164,6 @@ blk_l:
     ret
 load_bxor:
     pop    edx
-    call   load_sbox
-
-; ecx=0 : encryption
-; ecx=1 : decryption
-;
-; edi = blk
-; ebp = i
-_sbox128x:
-sbox128:
-    pushad
-    mov    edx, edi
-    call   init_sbox    
-; sbox
-  db 038h, 0F1h, 0A6h, 05Bh, 0EDh, 042h, 070h, 09Ch
-  db 0FCh, 027h, 090h, 05Ah, 01Bh, 0E8h, 06Dh, 034h 
-  db 086h, 079h, 03Ch, 0AFh, 0D1h, 0E4h, 00Bh, 052h
-  db 00Fh, 0B8h, 0C9h, 063h, 0D1h, 024h, 0A7h, 05Eh
-  db 01Fh, 083h, 0C0h, 0B6h, 025h, 04Ah, 09Eh, 07Dh
-  db 0F5h, 02Bh, 04Ah, 09Ch, 003h, 0E8h, 0D6h, 071h
-  db 072h, 0C5h, 084h, 06Bh, 0E9h, 01Fh, 0D3h, 0A0h
-  db 01Dh, 0F0h, 0E8h, 02Bh, 074h, 0CAh, 093h, 056h
-; sbox_inv
-  db 0D3h, 0B0h, 0A6h, 05Ch, 01Eh, 047h, 0F9h, 082h
-  db 058h, 02Eh, 0F6h, 0C3h, 0B4h, 079h, 01Dh, 0A0h
-  db 0C9h, 0F4h, 0BEh, 012h, 003h, 06Dh, 058h, 0A7h
-  db 009h, 0A7h, 0BEh, 06Dh, 035h, 0C2h, 048h, 0F1h
-  db 050h, 083h, 0A9h, 07Eh, 02Ch, 0B6h, 04Fh, 0D1h
-  db 08Fh, 029h, 041h, 0DEh, 0B6h, 053h, 07Ch, 0A0h
-  db 0FAh, 01Dh, 053h, 060h, 049h, 0E7h, 02Ch, 08Bh
-  db 030h, 06Dh, 09Eh, 0F8h, 05Ch, 0B7h, 0A1h, 042h
-  
-init_sbox:
-    pop    esi               ; esi=sbox
-    jecxz  sb_and
-    add    esi, 64           ; eax=sbox_inv
-sb_and:
-    and    ebp, 7            ; %= 8
-    lea    esi, [esi+8*ebp]  ; esi = &sbox[i*8]
-    
-    sub    esp, 32           ; create 2 16-byte blocks
-    mov    ebx, esp          ; ebx=sb
-    mov    edi, esp          ; edi=sb
-    push   8
-    pop    ecx               ; SERPENT_BLK_LEN/2
-sb_l1:
-    lodsb                    ; t = sbp[i/2];
-    aam    16
-    xchg   ah, al
-    stosw
-    loop   sb_l1
-    
-    ; serpent_perm (&tmp_blk, blk, SERPENT_IP);
-    mov    esi, edx
-    stc
-    call   serpent_perm
-    mov    esi, edi
-    mov    cl, SERPENT_BLK_LEN
-    push   esi
-sb_l2:
-    lodsb
-    aam    16
-    xchg   ah, al
-    xlatb
-    xchg   ah, al
-    xlatb
-    aad    16 
-    stosb
-    loop   sb_l2
-    
-    pop    esi
-    mov    edi, edx
-    ; serpent_perm (blk, &tmp_blk, SERPENT_FP);
-;;    clc
-    call   serpent_perm
-    add    esp, 32
-    popad
-    ret
-
-load_sbox:
-    pop    ebx
     jecxz  encrypt
     
     push   SERPENT_ROUNDS
@@ -231,7 +177,7 @@ sd_l:
 sd_e:
     dec    ebp               ; --i
     ; sbox128 (out, i, SERPENT_DECRYPT);
-    call   ebx ; sbox128
+    call   sbox128
     ; blkxor (out, key, i);
     call   edx ; blkxor
     test   ebp, ebp
@@ -249,7 +195,7 @@ se_e:
     ; blkxor (out, key, i);
     call   edx ; blkxor
     ; sbox128 (out, i, SERPENT_ENCRYPT);
-    call   ebx ; sbox128
+    call   sbox128
     inc    ebp
     cmp    ebp, SERPENT_ROUNDS
     jne    se_l
@@ -370,3 +316,77 @@ fp_m_l:
     popad
     ret
  
+; ecx=0 : encryption
+; ecx=1 : decryption
+;
+; edi = blk
+; ebp = i
+_sbox128x:
+sbox128:
+    pushad
+    mov    edx, edi
+    call   init_sbox    
+; sbox
+  db 038h, 0F1h, 0A6h, 05Bh, 0EDh, 042h, 070h, 09Ch
+  db 0FCh, 027h, 090h, 05Ah, 01Bh, 0E8h, 06Dh, 034h 
+  db 086h, 079h, 03Ch, 0AFh, 0D1h, 0E4h, 00Bh, 052h
+  db 00Fh, 0B8h, 0C9h, 063h, 0D1h, 024h, 0A7h, 05Eh
+  db 01Fh, 083h, 0C0h, 0B6h, 025h, 04Ah, 09Eh, 07Dh
+  db 0F5h, 02Bh, 04Ah, 09Ch, 003h, 0E8h, 0D6h, 071h
+  db 072h, 0C5h, 084h, 06Bh, 0E9h, 01Fh, 0D3h, 0A0h
+  db 01Dh, 0F0h, 0E8h, 02Bh, 074h, 0CAh, 093h, 056h
+; sbox_inv
+  db 0D3h, 0B0h, 0A6h, 05Ch, 01Eh, 047h, 0F9h, 082h
+  db 058h, 02Eh, 0F6h, 0C3h, 0B4h, 079h, 01Dh, 0A0h
+  db 0C9h, 0F4h, 0BEh, 012h, 003h, 06Dh, 058h, 0A7h
+  db 009h, 0A7h, 0BEh, 06Dh, 035h, 0C2h, 048h, 0F1h
+  db 050h, 083h, 0A9h, 07Eh, 02Ch, 0B6h, 04Fh, 0D1h
+  db 08Fh, 029h, 041h, 0DEh, 0B6h, 053h, 07Ch, 0A0h
+  db 0FAh, 01Dh, 053h, 060h, 049h, 0E7h, 02Ch, 08Bh
+  db 030h, 06Dh, 09Eh, 0F8h, 05Ch, 0B7h, 0A1h, 042h
+  
+init_sbox:
+    pop    esi               ; esi=sbox
+    jecxz  sb_and
+    add    esi, 64           ; eax=sbox_inv
+sb_and:
+    and    ebp, 7            ; %= 8
+    lea    esi, [esi+8*ebp]  ; esi = &sbox[i*8]
+    
+    sub    esp, 32           ; create 2 16-byte blocks
+    mov    ebx, esp          ; ebx=sb
+    mov    edi, esp          ; edi=sb
+    mov    cl, 8             ; SERPENT_BLK_LEN/2
+sb_l1:
+    lodsb                    ; t = sbp[i/2];
+    aam    16
+    xchg   ah, al
+    stosw
+    loop   sb_l1
+    
+    ; serpent_perm (&tmp_blk, blk, SERPENT_IP);
+    mov    esi, edx
+    stc
+    call   serpent_perm
+    mov    esi, edi
+    mov    cl, SERPENT_BLK_LEN
+    push   esi
+sb_l2:
+    lodsb
+    aam    16
+    xchg   ah, al
+    xlatb
+    xchg   ah, al
+    xlatb
+    aad    16 
+    stosb
+    loop   sb_l2
+    
+    pop    esi
+    mov    edi, edx
+    ; serpent_perm (blk, &tmp_blk, SERPENT_FP);
+    call   serpent_perm
+    add    esp, 32
+    popad
+    ret
+
