@@ -34,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 555 bytes
+; size: 548 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -66,7 +66,28 @@ struc pushad_t
   _eax dd ?
   .size:
 endstruc
-
+    
+_serpent_encryptx:
+serpent_encrypt:
+    pushad
+    mov    edi, [esp+32+ 4]  ; out
+    mov    esi, [esp+32+ 8]  ; key
+    mov    ecx, [esp+32+12]  ; enc
+    call   ld_fn
+    ; ****************************
+blkxor:
+    pushad
+    mov    cl, 4
+    shl    ebp, cl
+    add    esi, ebp
+blk_l:
+    lodsd
+    xor    eax, [edi]
+    stosd
+    loop   blk_l
+    popad
+    ret
+    
 %define x0 eax
 %define x1 ebx
 %define x2 ecx
@@ -142,133 +163,7 @@ lt_end:
     stosd
     popad
     ret
-    
-_serpent_encryptx:
-serpent_encrypt:
-    pushad
-    mov    edi, [esp+32+ 4]  ; out
-    mov    esi, [esp+32+ 8]  ; key
-    mov    ecx, [esp+32+12]  ; enc
-    call   load_bxor
-    pushad
-    push   4
-    pop    ecx
-    shl    ebp, cl
-    add    esi, ebp
-blk_l:
-    lodsd
-    xor    eax, [edi]
-    stosd
-    loop   blk_l
-    popad
-    ret
-load_bxor:
-    pop    edx
-    jecxz  encrypt
-    
-    push   SERPENT_ROUNDS
-    pop    ebp
-    ; blkxor (out, key, i);
-    call   edx ; blkxor
-    jmp    sd_e
-sd_l:
-    ; serpent_lt (out, SERPENT_DECRYPT);
-    call   serpent_lt
-sd_e:
-    dec    ebp               ; --i
-    ; sbox128 (out, i, SERPENT_DECRYPT);
-    call   sbox128
-    ; blkxor (out, key, i);
-    call   edx ; blkxor
-    test   ebp, ebp
-    jnz    sd_l
-    popad
-    ret
-    
-encrypt:
-    xor    ebp, ebp          ; i=0
-    jmp    se_e
-se_l:
-    ; serpent_lt (out, SERPENT_ENCRYPT);
-    call   serpent_lt
-se_e:
-    ; blkxor (out, key, i);
-    call   edx ; blkxor
-    ; sbox128 (out, i, SERPENT_ENCRYPT);
-    call   sbox128
-    inc    ebp
-    cmp    ebp, SERPENT_ROUNDS
-    jne    se_l
-    call   edx ; blkxor
-    popad
-    ret
-
-_serpent_setkeyx:  
-serpent_setkey:  
-    pushad
-    
-    ; copy key into local memory
-    push   32
-    pop    ecx
-    sub    esp, ecx
-    mov    edi, esp
-    mov    esi, [edi+64+8]  ; esi = input
-    rep    movsb
-    
-    mov    esi, esp          ; esi = local key bytes
-    mov    edi, [edi+32+4]   ; edi = key ctx
-    ; ecx is i which is now 0
-skey_init_j:
-    xor    edx, edx           ; j=0
-skey_loop_j:
-    ; serpent_gen_w (s_ws.v32, j+4*i);
-    mov    eax, [esi]
-    xor    eax, [esi+3*4]
-    xor    eax, [esi+5*4]
-    xor    eax, [esi+7*4]
-    xor    eax, GOLDEN_RATIO
-    lea    ebx, [edx+4*ecx]
-    xor    eax, ebx
-    rol    eax, 11
-    mov    [edi+4*edx], eax
-    
-    ; rotate workspace left 32 bits
-    pushad
-    push   esi
-    cmpsd
-    pop    edi
-    push   7
-    pop    ecx
-    rep    movsd
-    stosd
-    popad
-    
-    ; j++
-    inc    edx
-    cmp    edx, 4
-    jne    skey_loop_j
-    
-    ; apply sbox
-    push   ecx
-    push   3
-    pop    ebp
-    sub    ebp, ecx          ; 3 - i
-    xor    ecx, ecx          ; ecx=SERPENT_ENCRYPT
-    call   sbox128
-    pop    ecx
-    
-    ; advance key
-    add    edi, 16
-    
-    ; i++
-    inc    ecx
-    cmp    ecx, 32
-    jbe    skey_init_j
-    
-    add    esp, 32
-    popad
-    ret
-   
+  
 ; void serpent_perm (out, in);
 ; edi = out
 ; esi = in
@@ -386,6 +281,112 @@ sb_l2:
     mov    edi, edx
     ; serpent_perm (blk, &tmp_blk, SERPENT_FP);
     call   serpent_perm
+    add    esp, 32
+    popad
+    ret
+    
+ld_fn:
+    ; *********************************
+    pop    edx
+    lea    ebx, [edx+(serpent_lt-blkxor)]
+    lea    eax, [ebx+(sbox128-serpent_lt)]
+    xor    ebp, ebp
+    jecxz  se_e
+    push   SERPENT_ROUNDS
+    pop    ebp
+    ; blkxor (out, key, i);
+    call   edx ; blkxor
+    jmp    sd_e
+sd_l:
+    ; serpent_lt (out, SERPENT_DECRYPT);
+    call   ebx ; serpent_lt
+sd_e:
+    dec    ebp               ; --i
+    ; sbox128 (out, i, SERPENT_DECRYPT);
+    call   eax ; sbox128
+    ; blkxor (out, key, i);
+    call   edx ; blkxor
+    test   ebp, ebp
+    jnz    sd_l
+    popad
+    ret
+se_l:
+    ; serpent_lt (out, SERPENT_ENCRYPT);
+    call   ebx ; serpent_lt
+se_e:
+    ; blkxor (out, key, i);
+    call   edx ; blkxor
+    ; sbox128 (out, i, SERPENT_ENCRYPT);
+    call   eax ; sbox128
+    inc    ebp
+    cmp    ebp, SERPENT_ROUNDS
+    jne    se_l
+    call   edx ; blkxor
+    popad
+    ret
+    ; *********************************
+    
+_serpent_setkeyx:  
+serpent_setkey:  
+    pushad
+    
+    ; copy key into local memory
+    push   32
+    pop    ecx
+    sub    esp, ecx
+    mov    edi, esp
+    mov    esi, [edi+64+8]  ; esi = input
+    rep    movsb
+    
+    mov    esi, esp          ; esi = local key bytes
+    mov    edi, [edi+32+4]   ; edi = key ctx
+    ; ecx is i which is now 0
+skey_init_j:
+    xor    edx, edx           ; j=0
+skey_loop_j:
+    ; serpent_gen_w (s_ws.v32, j+4*i);
+    mov    eax, [esi]
+    xor    eax, [esi+3*4]
+    xor    eax, [esi+5*4]
+    xor    eax, [esi+7*4]
+    xor    eax, GOLDEN_RATIO
+    lea    ebx, [edx+4*ecx]
+    xor    eax, ebx
+    rol    eax, 11
+    mov    [edi+4*edx], eax
+    
+    ; rotate workspace left 32 bits
+    pushad
+    push   esi
+    cmpsd
+    pop    edi
+    mov    cl, 7
+    rep    movsd
+    stosd
+    popad
+    
+    ; j++
+    inc    edx
+    cmp    edx, 4
+    jne    skey_loop_j
+    
+    ; apply sbox
+    push   ecx
+    push   3
+    pop    ebp
+    sub    ebp, ecx          ; 3 - i
+    xor    ecx, ecx          ; ecx=SERPENT_ENCRYPT
+    call   sbox128
+    pop    ecx
+    
+    ; advance key
+    add    edi, 16
+    
+    ; i++
+    inc    ecx
+    cmp    ecx, 32
+    jbe    skey_init_j
+    
     add    esp, 32
     popad
     ret
