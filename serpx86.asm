@@ -34,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 556 bytes
+; size: 555 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -206,13 +206,13 @@ se_e:
 _serpent_setkeyx:  
 serpent_setkey:  
     pushad
-    mov    esi, [esp+32+8]  ; esi = input
     
     ; copy key into local memory
     push   32
     pop    ecx
     sub    esp, ecx
     mov    edi, esp
+    mov    esi, [edi+64+8]  ; esi = input
     rep    movsb
     
     mov    esi, esp          ; esi = local key bytes
