@@ -234,3 +234,4 @@ void serpent_encrypt (void *in, serpent_key *key, int enc)
     blkxor (out, key, i);
   }
 }
+
