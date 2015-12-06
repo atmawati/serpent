@@ -34,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 548 bytes
+; size: 547 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -70,9 +70,14 @@ endstruc
 _serpent_encryptx:
 serpent_encrypt:
     pushad
-    mov    edi, [esp+32+ 4]  ; out
-    mov    esi, [esp+32+ 8]  ; key
-    mov    ecx, [esp+32+12]  ; enc
+    lea    esi, [esp+32+ 4]
+    lodsd
+    xchg   edi, eax         ; out
+    lodsd
+    xchg   ecx, eax
+    lodsd
+    xchg   ecx, eax         ; enc
+    xchg   esi, eax         ; key
     call   ld_fn
     ; ****************************
 blkxor:
