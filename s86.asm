@@ -34,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 539 bytes
+; size: 538 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -199,7 +199,7 @@ sbox128:
   
 init_sbox:
     pop    esi               ; esi=sbox
-    jecxz  sb_and
+    jc     sb_and
     add    esi, 64           ; eax=sbox_inv
 sb_and:
     and    edx, 7            ; %= 8
@@ -308,6 +308,7 @@ sd_l:
 sd_e:
     dec    edx               ; --i
     ; sbox128 (out, i, SERPENT_DECRYPT);
+    clc
     call   eax ; sbox128
     ; blkxor (out, key, i);
     call   ebp ; blkxor
@@ -322,6 +323,7 @@ se_e:
     ; blkxor (out, key, i);
     call   ebp ; blkxor
     ; sbox128 (out, i, SERPENT_ENCRYPT);
+    stc
     call   eax ; sbox128
     inc    edx
     cmp    edx, SERPENT_ROUNDS
@@ -376,12 +378,10 @@ skey_loop_j:
     jne    skey_loop_j
     
     ; apply sbox
-    push   ecx
     dec    edx    
     sub    edx, ecx          ; 3 - i
-    xor    ecx, ecx          ; ecx=SERPENT_ENCRYPT
+    stc                      ; CF=1 for encrypt
     call   sbox128
-    pop    ecx
     
     ; advance key
     add    edi, 16
