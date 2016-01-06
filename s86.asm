@@ -34,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 542 bytes
+; size: 539 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -83,8 +83,8 @@ serpent_encrypt:
 blkxor:
     pushad
     mov    cl, 4
-    shl    ebp, cl
-    add    esi, ebp
+    shl    edx, cl
+    add    esi, edx
 blk_l:
     lodsd
     xor    eax, [edi]
@@ -173,11 +173,10 @@ lt_end:
 ; ecx=1 : decryption
 ;
 ; edi = blk
-; ebp = i
+; edx = i
 _sbox128x:
 sbox128:
     pushad
-    mov    edx, edi
     call   init_sbox    
 ; sbox
   db 083h, 01Fh, 06Ah, 0B5h, 0DEh, 024h, 007h, 0C9h
@@ -203,8 +202,9 @@ init_sbox:
     jecxz  sb_and
     add    esi, 64           ; eax=sbox_inv
 sb_and:
-    and    ebp, 7            ; %= 8
-    lea    esi, [esi+8*ebp]  ; esi = &sbox[i*8]
+    and    edx, 7            ; %= 8
+    lea    esi, [esi+8*edx]  ; esi = &sbox[i*8]
+    mov    edx, edi
     call   ld_perm
     
 ; void permute (out, in);
@@ -293,26 +293,25 @@ sb_l2:
     
 ld_fn:
     ; *********************************
-    pop    edx
-    lea    ebx, [edx+(serpent_lt-blkxor)]
-    lea    eax, [ebx+(sbox128-serpent_lt)]
-    xor    ebp, ebp
-    jecxz  se_e
-    push   SERPENT_ROUNDS
     pop    ebp
+    lea    ebx, [ebp+(serpent_lt-blkxor)]
+    lea    eax, [ebx+(sbox128-serpent_lt)]
+    xor    edx, edx
+    jecxz  se_e
+    mov    dl, SERPENT_ROUNDS
     ; blkxor (out, key, i);
-    call   edx ; blkxor
+    call   ebp ; blkxor
     jmp    sd_e
 sd_l:
     ; serpent_lt (out, SERPENT_DECRYPT);
     call   ebx ; serpent_lt
 sd_e:
-    dec    ebp               ; --i
+    dec    edx               ; --i
     ; sbox128 (out, i, SERPENT_DECRYPT);
     call   eax ; sbox128
     ; blkxor (out, key, i);
-    call   edx ; blkxor
-    test   ebp, ebp
+    call   ebp ; blkxor
+    test   edx, edx
     jnz    sd_l
     popad
     ret
@@ -321,13 +320,13 @@ se_l:
     call   ebx ; serpent_lt
 se_e:
     ; blkxor (out, key, i);
-    call   edx ; blkxor
+    call   ebp ; blkxor
     ; sbox128 (out, i, SERPENT_ENCRYPT);
     call   eax ; sbox128
-    inc    ebp
-    cmp    ebp, SERPENT_ROUNDS
+    inc    edx
+    cmp    edx, SERPENT_ROUNDS
     jne    se_l
-    call   edx ; blkxor
+    call   ebp ; blkxor
     popad
     ret
     ; *********************************
@@ -378,9 +377,8 @@ skey_loop_j:
     
     ; apply sbox
     push   ecx
-    push   3
-    pop    ebp
-    sub    ebp, ecx          ; 3 - i
+    dec    edx    
+    sub    edx, ecx          ; 3 - i
     xor    ecx, ecx          ; ecx=SERPENT_ENCRYPT
     call   sbox128
     pop    ecx
