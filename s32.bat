@@ -1,5 +1,5 @@
 @echo off
-yasm -fwin32 serpx86.asm -oserpx86.obj
-yasm -fbin -DBIN serpx86.asm -oserpx86.bin
-cl s_test.c serpent.c serpx86.obj
+yasm -fwin32 s86.asm -os86.obj
+yasm -fbin -DBIN s86.asm -os86.bin
+cl s_test.c /DUSE_ASM s86.obj
 del *.err *.obj

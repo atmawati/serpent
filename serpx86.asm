@@ -169,12 +169,12 @@ lt_end:
     popad
     ret
   
-; void serpent_perm (out, in);
+; void permute (out, in);
 ; edi = out
 ; esi = in
 ; CF = type
-_serpent_permx:
-serpent_perm:
+_permutex:
+permute:
     pushad
     xchg   eax, ecx    ; ecx should be zero
     push   16
@@ -264,10 +264,10 @@ sb_l1:
     stosw
     loop   sb_l1
     
-    ; serpent_perm (&tmp_blk, blk, SERPENT_IP);
+    ; permute (&tmp_blk, blk, SERPENT_IP);
     mov    esi, edx
     stc
-    call   serpent_perm
+    call   permute
     mov    esi, edi
     mov    cl, SERPENT_BLK_LEN
     push   esi
@@ -284,8 +284,8 @@ sb_l2:
     
     pop    esi
     mov    edi, edx
-    ; serpent_perm (blk, &tmp_blk, SERPENT_FP);
-    call   serpent_perm
+    ; permute (blk, &tmp_blk, SERPENT_FP);
+    call   permute
     add    esp, 32
     popad
     ret

@@ -53,6 +53,7 @@ void dump_hex (char *s, uint8_t bin[], int len)
     printf ("%02x", bin[i]);
   }
 }
+
 int main (void)
 {
   uint8_t ct1[32], pt1[32], pt2[32], key[64];
@@ -72,7 +73,7 @@ int main (void)
     memset (&skey, 0, sizeof (skey));
     p=(uint32_t*)&skey.x[0][0];
     
-    serpent_setkeyx (&skey, key);
+    serpent_setkey (&skey, key);
     printf ("\nkey=");
 
     for (j=0; j<sizeof(skey)/sizeof(serpent_subkey_t)*4; j++) {
@@ -86,13 +87,13 @@ int main (void)
     printf ("\n\n");
     dump_hex ("plaintext", ct2.v8, 16);
     
-    serpent_encryptx (ct2.v8, &skey, SERPENT_ENCRYPT);
+    serpent_encrypt (ct2.v8, &skey, SERPENT_ENCRYPT);
   
     dump_hex ("ciphertext", ct2.v8, 16);
     
     if (memcmp (ct1, ct2.v8, clen) == 0) {
       printf ("\nEncryption OK");
-      serpent_encryptx (ct2.v8, &skey, SERPENT_DECRYPT);
+      serpent_encrypt (ct2.v8, &skey, SERPENT_DECRYPT);
       if (memcmp (pt1, ct2.v8, plen) == 0) {
         printf ("\nDecryption OK");
         dump_hex ("plaintext", ct2.v8, 16);
