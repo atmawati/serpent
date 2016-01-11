@@ -34,7 +34,7 @@
 ; Derived from C implementation by Daniel Otte, 
 ; author of AVR-crypto-lib
 ;
-; size: 538 bytes
+; size: 536 bytes
 ;
 ; global calls use cdecl convention
 ;
@@ -84,20 +84,19 @@ blkxor:
     pushad
     mov    cl, 4
     shl    edx, cl
-    add    esi, edx
 blk_l:
-    lodsd
-    xor    eax, [edi]
-    stosd
+    mov    eax, [esi+edx]
+    xor    [edi], eax
+    cmpsd
     loop   blk_l
     popad
     ret
     
 %define x0 eax
 %define x1 ebx
-%define x2 ecx
-%define x3 edx
-%define x4 ebp
+%define x2 edx
+%define x3 ebp
+%define x4 esi
 
 ; ecx=0 for encrypt
 ; ecx=1 for decrypt
@@ -107,7 +106,6 @@ _serpent_ltx:
 serpent_lt:
     pushad
     mov    esi, edi
-    test   ecx, ecx
     
     lodsd
     xchg   x0, x3
@@ -118,7 +116,7 @@ serpent_lt:
     lodsd
     xchg   x0, x3
     
-    jz     lt_enc   ; if ecx=0, encryption
+    jecxz  lt_enc   ; if ecx=0, encryption
     
     rol    x2, 10
     ror    x0, 5
@@ -348,9 +346,9 @@ serpent_setkey:
     mov    esi, esp          ; esi = local key bytes
     mov    edi, [edi+32+4]   ; edi = key ctx
     ; ecx will be i which is now 0
-skey_init_j:
+skey_l1:
     xor    edx, edx           ; j=0
-skey_loop_j:
+skey_l2:
     ; serpent_gen_w (s_ws.v32, j+4*i);
     mov    eax, [esi]
     xor    eax, [esi+3*4]
@@ -375,7 +373,7 @@ skey_loop_j:
     ; j++
     inc    edx
     cmp    edx, 4
-    jne    skey_loop_j
+    jne    skey_l2
     
     ; apply sbox
     dec    edx    
@@ -389,7 +387,7 @@ skey_loop_j:
     ; i++
     inc    ecx
     cmp    ecx, 32
-    jbe    skey_init_j
+    jbe    skey_l1
     
     add    esp, 32
     popad
